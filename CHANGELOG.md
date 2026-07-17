@@ -9,6 +9,16 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.3] - 2026-07-17
+
+### Added
+- File logging: events are now written to an append-only log file (default
+  `assaymanager.log` in the working directory; configurable via `-log` /
+  `AM_LOG`) in addition to the console. Explicit "server session started" and
+  "server session stopped" events bracket each run (stop is logged on graceful
+  Ctrl+C / SIGTERM shutdown). The file is appended across restarts so session
+  history is retained.
+
 ## [0.1.2] - 2026-07-17
 
 ### Added

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -23,16 +25,37 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.1.2"
+const Version = "0.1.3"
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	cfg := config.Load()
 
+	// Log to both the console and an append-only file, so session history
+	// accumulates across restarts.
+	logFile, err := os.OpenFile(cfg.LogPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cannot open log file %q: %v\n", cfg.LogPath, err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
+	logger := slog.New(slog.NewTextHandler(io.MultiWriter(os.Stdout, logFile), nil))
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx, cfg, logger); err != nil {
+		logger.Error("fatal", "err", err)
+		os.Exit(1)
+	}
+}
+
+// run starts the server and blocks until ctx is cancelled (Ctrl+C / SIGTERM),
+// then shuts down gracefully. Session start/stop are logged so the log file
+// records each run's lifecycle.
+func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	st, err := store.Open(cfg.DBPath)
 	if err != nil {
-		logger.Error("open database", "path", cfg.DBPath, "err", err)
-		os.Exit(1)
+		return fmt.Errorf("open database %q: %w", cfg.DBPath, err)
 	}
 	defer st.Close()
 
@@ -41,8 +64,7 @@ func main() {
 
 	srv, err := web.New(cfg, logger, st, sessions, analyzer)
 	if err != nil {
-		logger.Error("init server", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("init server: %w", err)
 	}
 
 	httpSrv := &http.Server{
@@ -51,22 +73,28 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	logger.Info("server session started",
+		"version", Version, "addr", cfg.Addr, "db", cfg.DBPath, "log", cfg.LogPath, "pid", os.Getpid())
+
+	serveErr := make(chan error, 1)
 	go func() {
-		logger.Info("AssayManager starting", "version", Version, "addr", cfg.Addr, "db", cfg.DBPath)
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("http server", "err", err)
-			os.Exit(1)
+			serveErr <- err
 		}
 	}()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		logger.Info("shutdown signal received, stopping")
+	case err := <-serveErr:
+		return fmt.Errorf("http server: %w", err)
+	}
 
-	logger.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown", "err", err)
 	}
+	logger.Info("server session stopped")
+	return nil
 }
