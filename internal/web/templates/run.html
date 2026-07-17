@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Run check</h1>
+<p class="muted">
+  Start an inclusivity check for an assay version. Analysis is a stub in this MVP — runs complete
+  quickly with a placeholder report.
+</p>
+{{if .Data.Assays}}
+<form method="post" action="/run" class="stack card narrow">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label>Assay version
+    <select name="assay_id" required>
+      {{range .Data.Assays}}<option value="{{.ID}}">{{.Name}} {{.Version}}</option>{{end}}
+    </select>
+  </label>
+  <label>Notes / parameters (optional)
+    <textarea name="params" rows="4" placeholder="free-form notes for now"></textarea>
+  </label>
+  <button type="submit">Start run</button>
+</form>
+{{else}}
+<p class="muted">You need an assay first. <a href="/assays/new">Create one</a>.</p>
+{{end}}
+{{end}}

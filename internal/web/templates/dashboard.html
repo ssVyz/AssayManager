@@ -1,0 +1,15 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+<p class="muted">Welcome, {{if .User.Name}}{{.User.Name}}{{else}}{{.User.Username}}{{end}}.</p>
+
+<div class="tiles">
+  <a class="tile" href="/assays"><span class="num">{{.Data.AssayCount}}</span><span class="lbl">Assays</span></a>
+  <a class="tile" href="/results"><span class="num">{{.Data.RunCount}}</span><span class="lbl">Runs</span></a>
+  <a class="tile" href="/results"><span class="num">{{.Data.RunningRuns}}</span><span class="lbl">Running</span></a>
+</div>
+
+<p class="actions">
+  <a class="btn" href="/assays/new">New assay</a>
+  <a class="btn secondary" href="/run">Run check</a>
+</p>
+{{end}}

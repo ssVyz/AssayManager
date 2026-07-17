@@ -1,0 +1,51 @@
+{{define "content"}}
+{{$f := .Data}}
+<div class="pagehead">
+  <h1>{{if $f.IsNew}}New assay{{else}}Edit assay / new version{{end}}</h1>
+  <a class="btn secondary" href="/assays">Back to assays</a>
+</div>
+
+{{if $f.Error}}<div class="flash err">{{$f.Error}}</div>{{end}}
+
+<p class="muted">
+  Write the assay as YAML. Sequences use inline <code>/modification/</code> markers; the clean
+  sequence and modification list are derived for you. Click <b>Update preview</b> to check your
+  input, then save. Saving under the same <b>name</b> creates a new version of that assay; a new
+  name starts a new assay at v0.1.
+</p>
+
+<div class="editor">
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <textarea name="yaml" rows="24" class="mono" spellcheck="false">{{$f.YAMLInput}}</textarea>
+    <div class="actions">
+      <button type="submit" formaction="/assays/preview">Update preview</button>
+      <button type="submit" formaction="/assays" name="bump" value="minor">Save (minor)</button>
+      <button type="submit" formaction="/assays" name="bump" value="major" class="secondary">Save (major)</button>
+    </div>
+  </form>
+
+  <div class="preview">
+    {{if $f.Preview}}
+      <h2>Interpretation</h2>
+      <table class="grid">
+        <thead><tr><th>Oligo</th><th>Function</th><th>Clean sequence</th><th>Mods</th></tr></thead>
+        <tbody>
+        {{range $f.Preview.Parsed.Oligos.OligoList}}
+          <tr>
+            <td>{{.Name}}</td>
+            <td>{{.Function}}</td>
+            <td class="mono">{{.SeqClean}}</td>
+            <td>{{range .Mods}}<span class="tag">{{.Content}}@{{.Pos}}</span> {{else}}<span class="muted">—</span>{{end}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      <details open><summary>Canonical YAML</summary><pre class="code">{{$f.Preview.YAML}}</pre></details>
+      <details><summary>JSON (as stored)</summary><pre class="code">{{$f.Preview.JSON}}</pre></details>
+    {{else}}
+      <p class="muted">Preview will appear here after you click <b>Update preview</b>.</p>
+    {{end}}
+  </div>
+</div>
+{{end}}

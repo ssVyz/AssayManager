@@ -1,0 +1,10 @@
+{{define "content"}}
+<h1>Profile</h1>
+<form method="post" action="/profile" class="stack card narrow">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label>Username <input type="text" value="{{.User.Username}}" disabled></label>
+  <label>Display name <input type="text" name="name" value="{{.User.Name}}"></label>
+  <label>Organisation <input type="text" name="organisation" value="{{.User.Organisation}}"></label>
+  <button type="submit">Save</button>
+</form>
+{{end}}

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>Register</h1>
+  <form method="post" action="/register" class="stack">
+    <label>Username <input type="text" name="username" required autofocus></label>
+    <label>Password <input type="password" name="password" required></label>
+    <label>Repeat password <input type="password" name="password2" required></label>
+    <button type="submit">Create account</button>
+  </form>
+  <p class="muted">Already registered? <a href="/login">Log in</a>.</p>
+</section>
+{{end}}

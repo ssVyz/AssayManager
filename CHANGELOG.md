@@ -9,6 +9,35 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.2] - 2026-07-17
+
+### Added
+- Initial web application MVP (server-rendered, no client-side JS), organised as:
+  - `internal/config` — flags/env configuration.
+  - `internal/store` — SQLite data layer (`modernc.org/sqlite`, WAL) behind a
+    repository API; users, assays, and results tables; portable SQL (a move to
+    Postgres is anticipated). No migrations yet — delete the DB file to reset.
+  - `internal/auth` — bcrypt password hashing, in-memory sessions, CSRF tokens.
+  - `internal/analysis` — `Analyzer` interface with a `Stub` implementation; the
+    real inclusivity_check_blast CLI integration comes later.
+  - `internal/web` — routing, middleware (session, auth guard, CSRF, body cap,
+    panic recovery), handlers, embedded HTML templates and stylesheet.
+- User signup/login/logout and a profile page (name, organisation).
+- Assay management: create/edit via a YAML editor with a server-rendered preview
+  that derives clean sequences and modification lists via the assayparser.
+  Immutable versioning (`vMAJOR.MINOR`, new lineage at `v0.1`; the user chooses a
+  minor or major bump when saving under an existing name). Name+version are
+  derived from the JSON header (authoritative). List, view, history, and delete.
+- Analysis runs using the goroutine model: a results row is created immediately
+  (status `running`); a background goroutine runs the stub and writes the outcome
+  on completion. A `Scheduled checks` placeholder page.
+- Dependency: `golang.org/x/crypto` (bcrypt), `modernc.org/sqlite`.
+
+### Notes
+- CSRF protection covers authenticated POST forms; login/register are not yet
+  CSRF-protected (no pre-auth token). Session cookies are not `Secure` (local
+  HTTP); enable once served over HTTPS.
+
 ## [0.1.1] - 2026-07-17
 
 ### Changed

@@ -1,0 +1,96 @@
+package store
+
+import (
+	"database/sql"
+	"sort"
+)
+
+// CreateRun records the start of an analysis run against a specific assay
+// version and returns the new result id. The run begins in the "running" state;
+// the caller fills in the outcome later via CompleteRun or FailRun.
+func (s *Store) CreateRun(ownerID int64, assay Assay, params string) (int64, error) {
+	res, err := s.db.Exec(
+		`INSERT INTO results(owner_id, assay_id, assay_name, assay_version, status, params, started_at)
+		 VALUES(?, ?, ?, ?, ?, ?, ?)`,
+		ownerID, assay.ID, assay.Name, assay.Version, StatusRunning, params, nowTS())
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// CompleteRun marks a run finished successfully and stores its report.
+func (s *Store) CompleteRun(id int64, report string) error {
+	_, err := s.db.Exec(
+		`UPDATE results SET status = ?, report = ?, finished_at = ? WHERE id = ?`,
+		StatusDone, report, nowTS(), id)
+	return err
+}
+
+// FailRun marks a run failed and stores the error message.
+func (s *Store) FailRun(id int64, errMsg string) error {
+	_, err := s.db.Exec(
+		`UPDATE results SET status = ?, error = ?, finished_at = ? WHERE id = ?`,
+		StatusFailed, errMsg, nowTS(), id)
+	return err
+}
+
+// ListResults returns a user's runs, newest first.
+func (s *Store) ListResults(ownerID int64) ([]Result, error) {
+	rows, err := s.db.Query(
+		`SELECT id, owner_id, assay_id, assay_name, assay_version, status, params, report, error, started_at, finished_at
+		   FROM results WHERE owner_id = ?`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Result
+	for rows.Next() {
+		r, err := scanResult(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
+	return out, nil
+}
+
+// ResultByID returns a single run, scoped to the owner.
+func (s *Store) ResultByID(ownerID, id int64) (Result, error) {
+	rows, err := s.db.Query(
+		`SELECT id, owner_id, assay_id, assay_name, assay_version, status, params, report, error, started_at, finished_at
+		   FROM results WHERE id = ? AND owner_id = ?`, id, ownerID)
+	if err != nil {
+		return Result{}, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return Result{}, err
+		}
+		return Result{}, ErrNotFound
+	}
+	return scanResult(rows)
+}
+
+func scanResult(rows *sql.Rows) (Result, error) {
+	var r Result
+	var started string
+	var finished sql.NullString
+	err := rows.Scan(&r.ID, &r.OwnerID, &r.AssayID, &r.AssayName, &r.AssayVersion,
+		&r.Status, &r.Params, &r.Report, &r.Error, &started, &finished)
+	if err != nil {
+		return Result{}, err
+	}
+	r.StartedAt = parseTS(started)
+	if finished.Valid && finished.String != "" {
+		t := parseTS(finished.String)
+		r.FinishedAt = &t
+	}
+	return r, nil
+}

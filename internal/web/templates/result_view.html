@@ -1,0 +1,17 @@
+{{define "content"}}
+{{$r := .Data}}
+<div class="pagehead">
+  <h1>Run #{{$r.ID}}</h1>
+  <a class="btn secondary" href="/results">Back to results</a>
+</div>
+<ul class="kv">
+  <li><span>Assay</span> {{$r.AssayName}} {{$r.AssayVersion}}</li>
+  <li><span>Status</span> <span class="status {{$r.Status}}">{{$r.Status}}</span></li>
+  <li><span>Started</span> {{fmtTime $r.StartedAt}}</li>
+  <li><span>Finished</span> {{fmtTime $r.FinishedAt}}</li>
+</ul>
+{{if $r.Params}}<h2>Parameters</h2><pre class="code">{{$r.Params}}</pre>{{end}}
+{{if eq $r.Status "failed"}}<h2>Error</h2><pre class="code">{{$r.Error}}</pre>{{end}}
+{{if $r.Report}}<h2>Report</h2><pre class="code">{{$r.Report}}</pre>{{end}}
+{{if eq $r.Status "running"}}<p class="muted">This run is still in progress — reload to check for updates.</p>{{end}}
+{{end}}

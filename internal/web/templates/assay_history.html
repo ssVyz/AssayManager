@@ -1,0 +1,28 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>History: {{.Data.Name}}</h1>
+  <a class="btn secondary" href="/assays">Back to assays</a>
+</div>
+{{if .Data.Versions}}
+<table class="grid">
+  <thead><tr><th>Version</th><th>Author</th><th>Saved</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Versions}}
+    <tr>
+      <td>{{.Version}}</td>
+      <td>{{.Author}}</td>
+      <td>{{fmtTime .CreatedAt}}</td>
+      <td class="rowactions"><a href="/assays/{{.ID}}">View</a> <a href="/assays/{{.ID}}/edit">Edit</a></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+<form method="post" action="/assays/delete" class="danger-zone">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="name" value="{{.Data.Name}}">
+  <button type="submit" class="btn danger">Delete this assay (all versions)</button>
+</form>
+{{else}}
+<p class="muted">No versions found.</p>
+{{end}}
+{{end}}

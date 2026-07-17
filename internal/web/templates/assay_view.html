@@ -1,0 +1,41 @@
+{{define "content"}}
+{{$a := .Data.Assay}}
+<div class="pagehead">
+  <h1>{{$a.Name}} <span class="ver">{{$a.Version}}</span></h1>
+  <div class="actions">
+    <a class="btn" href="/assays/{{$a.ID}}/edit">Edit / new version</a>
+    <a class="btn secondary" href="/assays/history?name={{$a.Name}}">History</a>
+    <a class="btn secondary" href="/run">Run check</a>
+  </div>
+</div>
+<p class="muted">Author: {{.Data.Parsed.Header.Author}} · Saved: {{fmtTime $a.CreatedAt}}</p>
+
+<h2>Oligos</h2>
+<table class="grid">
+  <thead><tr><th>Name</th><th>Function</th><th>Actual sequence</th><th>Clean sequence</th><th>Mods</th></tr></thead>
+  <tbody>
+  {{range .Data.Parsed.Oligos.OligoList}}
+    <tr>
+      <td>{{.Name}}</td>
+      <td>{{.Function}}</td>
+      <td class="mono">{{.SeqActual}}</td>
+      <td class="mono">{{.SeqClean}}</td>
+      <td>
+        {{range .Mods}}<span class="tag">{{.Content}}@{{.Pos}} ({{.ActsAsBase}})</span> {{else}}<span class="muted">—</span>{{end}}
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+
+<h2>Targets</h2>
+{{$t := .Data.Parsed.Targets}}
+<ul class="kv">
+  <li><span>Target taxIDs</span> {{range $t.TgtTaxids}}{{.}} {{else}}<span class="muted">none</span>{{end}}</li>
+  <li><span>Off-target taxIDs</span> {{range $t.OffTaxids}}{{.}} {{else}}<span class="muted">none</span>{{end}}</li>
+  <li><span>Reference amplicon</span> {{if $t.RefAmpliconSeq}}<span class="mono">{{$t.RefAmpliconSeq}}</span>{{else}}<span class="muted">none</span>{{end}}</li>
+</ul>
+
+<details open><summary>YAML</summary><pre class="code">{{.Data.YAML}}</pre></details>
+<details><summary>JSON (as stored)</summary><pre class="code">{{.Data.JSON}}</pre></details>
+{{end}}

@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>Assays</h1>
+  <a class="btn" href="/assays/new">New assay</a>
+</div>
+{{if .Data}}
+<table class="grid">
+  <thead><tr><th>Name</th><th>Latest version</th><th>Author</th><th>Updated</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td><a href="/assays/{{.ID}}">{{.Name}}</a></td>
+      <td>{{.Version}}</td>
+      <td>{{.Author}}</td>
+      <td>{{fmtTime .CreatedAt}}</td>
+      <td class="rowactions">
+        <a href="/assays/{{.ID}}/edit">Edit</a>
+        <a href="/assays/history?name={{.Name}}">History</a>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No assays yet. <a href="/assays/new">Create one</a>.</p>
+{{end}}
+{{end}}

@@ -1,0 +1,22 @@
+{{define "content"}}
+<h1>Check results</h1>
+{{if .Data}}
+<table class="grid">
+  <thead><tr><th>Assay</th><th>Version</th><th>Status</th><th>Started</th><th>Finished</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td>{{.AssayName}}</td>
+      <td>{{.AssayVersion}}</td>
+      <td><span class="status {{.Status}}">{{.Status}}</span></td>
+      <td>{{fmtTime .StartedAt}}</td>
+      <td>{{fmtTime .FinishedAt}}</td>
+      <td class="rowactions"><a href="/results/{{.ID}}">View</a></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No runs yet. <a href="/run">Run a check</a>.</p>
+{{end}}
+{{end}}

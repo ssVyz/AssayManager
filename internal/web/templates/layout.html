@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if .Title}}{{.Title}} · {{end}}AssayManager</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a href="/">AssayManager</a></div>
+    <nav class="mainnav">
+      {{if .User}}
+      <a href="/"{{if eq .ActiveNav "dashboard"}} class="active"{{end}}>Dashboard</a>
+      <a href="/assays"{{if eq .ActiveNav "assays"}} class="active"{{end}}>Assays</a>
+      <a href="/run"{{if eq .ActiveNav "run"}} class="active"{{end}}>Run check</a>
+      <a href="/scheduled"{{if eq .ActiveNav "scheduled"}} class="active"{{end}}>Scheduled checks</a>
+      <a href="/results"{{if eq .ActiveNav "results"}} class="active"{{end}}>Check results</a>
+      {{end}}
+    </nav>
+    <div class="userbox">
+      {{if .User}}
+        <span class="who">{{.User.Username}}</span>
+        <a href="/profile">Profile</a>
+        <form method="post" action="/logout" class="inline">
+          <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+          <button type="submit">Log out</button>
+        </form>
+      {{else}}
+        <form method="post" action="/login" class="inline loginform">
+          <input type="text" name="username" placeholder="username" aria-label="username" required>
+          <input type="password" name="password" placeholder="password" aria-label="password" required>
+          <button type="submit">Log in</button>
+        </form>
+        <a href="/register">Register</a>
+      {{end}}
+    </div>
+  </header>
+
+  <main class="content">
+    {{if .Flash}}<div class="flash {{.FlashKind}}">{{.Flash}}</div>{{end}}
+    {{block "content" .}}{{end}}
+  </main>
+
+  <footer class="foot">AssayManager — MVP</footer>
+</body>
+</html>
