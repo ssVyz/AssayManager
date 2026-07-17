@@ -139,3 +139,12 @@ code { background: var(--blue-050); padding: .05rem .3rem; border-radius: 4px; }
 .status.done { color: var(--ok); }
 .status.failed { color: var(--err); }
 .danger-zone { margin-top: 1.5rem; }
+
+/* Add-oligo helper */
+fieldset.addoligo { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1rem 1rem; margin: 0; }
+fieldset.addoligo legend { font-weight: 600; color: var(--blue-700); padding: 0 .4rem; }
+.oligo-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-bottom: .7rem; }
+.oligo-fields label { display: block; font-size: .85rem; color: var(--muted); }
+.oligo-fields label input, .oligo-fields label select { margin-top: .2rem; }
+.oligo-fields .full { grid-column: 1 / -1; }
+@media (max-width: 600px) { .oligo-fields { grid-template-columns: 1fr; } }

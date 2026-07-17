@@ -9,6 +9,17 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.4] - 2026-07-17
+
+### Added
+- Assay editor: a structured "Add oligo" section (name, function dropdown, actual
+  sequence) that appends a correctly-formatted oligo to the YAML on submit
+  (`POST /assays/add-oligo`), reloading the page. No client-side JS — the current
+  textarea content is submitted with the request, so in-progress edits are kept;
+  the new oligo is built via the assayparser so its clean sequence and mods are
+  derived. The add-oligo fields are preserved across preview/add and cleared on
+  successful add.
+
 ## [0.1.3] - 2026-07-17
 
 ### Added

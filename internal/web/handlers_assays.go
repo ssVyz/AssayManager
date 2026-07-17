@@ -39,6 +39,10 @@ type assayFormData struct {
 	IsNew     bool
 	Error     string
 	Preview   *assayPreview
+	// Add-oligo helper fields (preserved across preview/add so input isn't lost).
+	OligoName string
+	OligoFunc string
+	OligoSeq  string
 }
 
 type assayPreview struct {
@@ -135,7 +139,12 @@ func (s *Server) handleAssayEdit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAssayPreview(w http.ResponseWriter, r *http.Request) {
 	input := r.FormValue("yaml")
-	form := assayFormData{YAMLInput: input}
+	form := assayFormData{
+		YAMLInput: input,
+		OligoName: strings.TrimSpace(r.FormValue("oligo_name")),
+		OligoFunc: r.FormValue("oligo_function"),
+		OligoSeq:  r.FormValue("oligo_seq"),
+	}
 
 	a, err := buildAssayFromYAML(input)
 	if err != nil {
@@ -151,6 +160,58 @@ func (s *Server) handleAssayPreview(w http.ResponseWriter, r *http.Request) {
 
 	pd := s.page(r, "assays", "Assay preview")
 	pd.Data = form
+	s.render(w, http.StatusOK, "assay_form", pd)
+}
+
+// handleAssayAddOligo appends a single oligo (from the structured add-oligo
+// fields) to the YAML currently in the editor and reloads the form with the
+// updated YAML. The current textarea content is submitted with the request, so
+// the user's in-progress edits are preserved.
+func (s *Server) handleAssayAddOligo(w http.ResponseWriter, r *http.Request) {
+	input := r.FormValue("yaml")
+	name := strings.TrimSpace(r.FormValue("oligo_name"))
+	fn := r.FormValue("oligo_function")
+	seq := r.FormValue("oligo_seq")
+
+	// On error, re-render keeping both the YAML and the add-oligo field values.
+	form := assayFormData{YAMLInput: input, OligoName: name, OligoFunc: fn, OligoSeq: seq}
+	renderErr := func(msg string) {
+		form.Error = msg
+		pd := s.page(r, "assays", "Assay")
+		pd.Data = form
+		s.render(w, http.StatusBadRequest, "assay_form", pd)
+	}
+
+	if name == "" || strings.TrimSpace(seq) == "" {
+		renderErr("Provide an oligo name and sequence to add.")
+		return
+	}
+	a, err := buildAssayFromYAML(input)
+	if err != nil {
+		renderErr(err.Error())
+		return
+	}
+	oligo, err := assayparser.MkOligo(name, fn, seq)
+	if err != nil {
+		renderErr(fmt.Sprintf("oligo %q: %v", name, err))
+		return
+	}
+	a.Oligos.OligoList = append(a.Oligos.OligoList, oligo)
+
+	y, err := assayparser.ConvertYaml(a)
+	if err != nil {
+		s.serverError(w, "serialize assay", err)
+		return
+	}
+
+	// Success: updated YAML in the textarea, add-oligo fields cleared, and a
+	// fresh preview so the user sees the derived result.
+	out := assayFormData{YAMLInput: string(y)}
+	if p, ok := makePreview(a); ok {
+		out.Preview = p
+	}
+	pd := s.page(r, "assays", "Assay")
+	pd.Data = out
 	s.render(w, http.StatusOK, "assay_form", pd)
 }
 

@@ -18,6 +18,25 @@
   <form method="post" class="stack">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     <textarea name="yaml" rows="24" class="mono" spellcheck="false">{{$f.YAMLInput}}</textarea>
+
+    <fieldset class="addoligo">
+      <legend>Add oligo</legend>
+      <p class="muted">Fill these in and click <b>Add oligo</b> to append a correctly-formatted oligo
+        to the YAML above. The sequence uses inline <code>/modification/</code> markers.</p>
+      <div class="oligo-fields">
+        <label>Name <input type="text" name="oligo_name" value="{{$f.OligoName}}"></label>
+        <label>Function
+          <select name="oligo_function">
+            <option value="forward-primer"{{if eq $f.OligoFunc "forward-primer"}} selected{{end}}>forward-primer</option>
+            <option value="reverse-primer"{{if eq $f.OligoFunc "reverse-primer"}} selected{{end}}>reverse-primer</option>
+            <option value="probe"{{if eq $f.OligoFunc "probe"}} selected{{end}}>probe</option>
+          </select>
+        </label>
+        <label class="full">Actual sequence <input type="text" name="oligo_seq" value="{{$f.OligoSeq}}" class="mono"></label>
+      </div>
+      <button type="submit" formaction="/assays/add-oligo" class="secondary">Add oligo</button>
+    </fieldset>
+
     <div class="actions">
       <button type="submit" formaction="/assays/preview">Update preview</button>
       <button type="submit" formaction="/assays" name="bump" value="minor">Save (minor)</button>
