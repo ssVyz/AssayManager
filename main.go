@@ -9,7 +9,7 @@ import "fmt"
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 func main() {
 	fmt.Printf("AssayManager %s\n", Version)
