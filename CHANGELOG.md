@@ -9,6 +9,15 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.0] - 2026-07-20
+
+Milestone release (human-requested minor bump): the file-based inclusivity
+analysis MVP is complete and tested end-to-end (see 0.1.6–0.1.7). No functional
+change beyond the version bump.
+
+### Added
+- `README.md` describing the repository structure and responsibilities.
+
 ## [0.1.7] - 2026-07-20
 
 ### Added
