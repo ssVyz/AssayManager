@@ -9,6 +9,7 @@
   </div>
 </div>
 <p class="muted">Author: {{.Data.Parsed.Header.Author}} · Saved: {{fmtTime $a.CreatedAt}}</p>
+{{if .Data.Parsed.Header.Description}}<p class="desc">{{.Data.Parsed.Header.Description}}</p>{{end}}
 
 <h2>Oligos</h2>
 <table class="grid">

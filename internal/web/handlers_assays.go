@@ -18,6 +18,7 @@ import (
 const skeletonYAML = `header:
   name: "New assay"
   author: ""
+  description: ""
 oligos:
   oligoList:
     - name: "Fwd"

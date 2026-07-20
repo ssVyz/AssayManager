@@ -9,6 +9,15 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.5] - 2026-07-17
+
+### Added
+- Assay header now has an optional `description` field (free-text comment):
+  added to `AssayHeader` (`internal/assayparser`), the `MkHeader` constructor,
+  the new-assay YAML skeleton, and the assay detail view. It round-trips through
+  JSON/YAML automatically and is not required by validation. Documented in
+  `assay_format.md`.
+
 ## [0.1.4] - 2026-07-17
 
 ### Added

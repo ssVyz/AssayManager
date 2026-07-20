@@ -119,7 +119,7 @@ func sampleAssay(t *testing.T) ValidAssay {
 		RefAmpliconSize: 29,
 	}
 	return WrapAssay(
-		MkHeader("Test assay", "0.0.1", "Test group"),
+		MkHeader("Test assay", "0.0.1", "Test group", "round-trip sample"),
 		AssayOligos{OligoList: []Oligo{fwd, probe}},
 		targets,
 	)

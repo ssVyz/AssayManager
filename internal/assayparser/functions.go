@@ -31,11 +31,12 @@ func IsValidFunction(f string) bool {
 
 // ----- type infrastructure
 
-func MkHeader(n string, v string, a string) AssayHeader {
+func MkHeader(n string, v string, a string, d string) AssayHeader {
 	return AssayHeader{
-		Name:    n,
-		Version: v,
-		Author:  a,
+		Name:        n,
+		Version:     v,
+		Author:      a,
+		Description: d,
 	}
 }
 

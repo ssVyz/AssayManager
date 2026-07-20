@@ -29,6 +29,7 @@ secrets/
 .claude/
 
 reference_files/
+old/
 
 # ----------------------------------------------------------------------
 # Logs / runtime files

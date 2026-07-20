@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.1.4"
+const Version = "0.1.5"
 
 func main() {
 	cfg := config.Load()
