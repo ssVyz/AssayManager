@@ -1,17 +1,58 @@
 {{define "content"}}
-{{$r := .Data}}
+{{$r := .Data.Result}}
 <div class="pagehead">
   <h1>Run #{{$r.ID}}</h1>
   <a class="btn secondary" href="/results">Back to results</a>
 </div>
 <ul class="kv">
   <li><span>Assay</span> {{$r.AssayName}} {{$r.AssayVersion}}</li>
+  <li><span>Reference</span> {{if $r.ReferenceName}}{{$r.ReferenceName}}{{else}}<span class="muted">—</span>{{end}}</li>
   <li><span>Status</span> <span class="status {{$r.Status}}">{{$r.Status}}</span></li>
   <li><span>Started</span> {{fmtTime $r.StartedAt}}</li>
   <li><span>Finished</span> {{fmtTime $r.FinishedAt}}</li>
+  {{if $r.ToolName}}<li><span>Tool</span> {{$r.ToolName}} {{$r.ToolVersion}} (schema {{$r.SchemaVersion}})</li>{{end}}
 </ul>
-{{if $r.Params}}<h2>Parameters</h2><pre class="code">{{$r.Params}}</pre>{{end}}
+{{if $r.Params}}<h2>Notes</h2><pre class="code">{{$r.Params}}</pre>{{end}}
 {{if eq $r.Status "failed"}}<h2>Error</h2><pre class="code">{{$r.Error}}</pre>{{end}}
-{{if $r.Report}}<h2>Report</h2><pre class="code">{{$r.Report}}</pre>{{end}}
 {{if eq $r.Status "running"}}<p class="muted">This run is still in progress — reload to check for updates.</p>{{end}}
+
+{{with .Data.Parsed}}
+  <h2>Summary</h2>
+  <div class="tiles">
+    <div class="tile"><span class="num">{{.Summary.TotalSequences}}</span><span class="lbl">Sequences</span></div>
+    <div class="tile"><span class="num">{{.Summary.SequencesWithMinMatches}}</span><span class="lbl">Meet thresholds</span></div>
+    <div class="tile"><span class="num">{{.Summary.Overall.AllPerfect}}</span><span class="lbl">All perfect</span></div>
+    <div class="tile"><span class="num">{{.Summary.Overall.NoMatch}}</span><span class="lbl">No match</span></div>
+  </div>
+  <ul class="kv">
+    <li><span>Valid amplicon</span> {{.Summary.SequencesWithValidAmplicon}}</li>
+    <li><span>Failed amplicon</span> {{.Summary.SequencesFailedAmplicon}}</li>
+    <li><span>Max one mismatch</span> {{.Summary.Overall.MaxOneMismatch}}</li>
+    <li><span>Two+ mismatches</span> {{.Summary.Overall.TwoPlusMismatches}}</li>
+  </ul>
+
+  {{if .Patterns}}
+  <h2>Top patterns</h2>
+  <table class="grid">
+    <thead><tr><th>Rank</th><th>Count</th><th>%</th><th>Cumulative %</th><th>Total mismatch</th><th>Fwd/Rev/Probe</th></tr></thead>
+    <tbody>
+    {{range .Patterns}}
+      <tr>
+        <td>{{.Rank}}</td>
+        <td>{{.Count}}</td>
+        <td>{{printf "%.1f" .Percentage}}</td>
+        <td>{{printf "%.1f" .CumulativePercentage}}</td>
+        <td>{{.TotalMismatches}}</td>
+        <td>{{.MatchedFwd}}/{{.MatchedRev}}/{{.MatchedProbe}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{end}}
+
+  <p class="muted">{{len .PerSequence}} per-sequence records (full detail in the raw JSON below).</p>
+  <details><summary>Raw JSON</summary><pre class="code">{{$r.Report}}</pre></details>
+{{else}}
+  {{if $r.Report}}<h2>Report</h2><pre class="code">{{$r.Report}}</pre>{{end}}
+{{end}}
 {{end}}

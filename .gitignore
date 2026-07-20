@@ -28,8 +28,10 @@ secrets/
 # ignore claude
 .claude/
 
+# ignore folders
 reference_files/
 old/
+assets/
 
 # ----------------------------------------------------------------------
 # Logs / runtime files

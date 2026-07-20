@@ -1,19 +1,29 @@
 {{define "content"}}
 <h1>Run check</h1>
+{{if .Data.Error}}<div class="flash err">{{.Data.Error}}</div>{{end}}
+{{if not .Data.Available}}
+<div class="card">
+  <p>The analysis tool is not available on this server, so runs are disabled.</p>
+  <p class="muted">The <code>inclusivity_check_blast</code> binary needs to be installed
+    (default location <code>assets/inclusivity_check_blast</code>).</p>
+</div>
+{{else if .Data.Assays}}
 <p class="muted">
-  Start an inclusivity check for an assay version. Analysis is a stub in this MVP — runs complete
-  quickly with a placeholder report.
+  Pick an assay version and upload a reference sequence set (FASTA). The check runs in the
+  background — follow it under <a href="/results">Check results</a>.
 </p>
-{{if .Data.Assays}}
-<form method="post" action="/run" class="stack card narrow">
+<form method="post" action="/run" enctype="multipart/form-data" class="stack card narrow">
   <input type="hidden" name="csrf_token" value="{{.CSRF}}">
   <label>Assay version
     <select name="assay_id" required>
       {{range .Data.Assays}}<option value="{{.ID}}">{{.Name}} {{.Version}}</option>{{end}}
     </select>
   </label>
-  <label>Notes / parameters (optional)
-    <textarea name="params" rows="4" placeholder="free-form notes for now"></textarea>
+  <label>Reference sequences (FASTA)
+    <input type="file" name="reference" accept=".fasta,.fa,.fna,.txt" required>
+  </label>
+  <label>Notes (optional)
+    <textarea name="params" rows="3" placeholder="free-form notes"></textarea>
   </label>
   <button type="submit">Start run</button>
 </form>

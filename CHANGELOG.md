@@ -9,6 +9,37 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.6] - 2026-07-20
+
+### Added
+- File-based inclusivity analysis (real, replacing the stub). `internal/analysis`
+  now runs the `inclusivity_check_blast` binary as a subprocess: it writes the
+  assay (AssayManager JSON, parsed by the tool directly) to a temp file and runs
+  it with `--emit-json-stdout --no-config -q` against an uploaded reference
+  FASTA, capturing the consolidated JSON from stdout.
+  - Startup health check via `--capabilities`; the run feature is disabled
+    (not fatal) if the binary is missing or its `schema_version` != 1. Binary
+    path resolves the configured location, falling back to `.exe` on Windows.
+  - Run form now takes a **reference FASTA upload** (multipart, streamed to a
+    temp file, cap `AM_MAX_REF_UPLOAD`, default 50 MiB) plus the assay version
+    and optional notes.
+  - Pre-run analysis-eligibility gate: ≥1 forward + ≥1 reverse primer (with a
+    non-empty clean sequence) and unique oligo names.
+  - Background runs are bounded by a semaphore (`AM_MAX_CONCURRENT_RUNS`,
+    default 2) and time-limited (`AM_ANALYSIS_TIMEOUT`, default 30m); the run row
+    is created immediately and filled in on completion, per the MVP model.
+  - Results store the raw consolidated JSON plus provenance (reference name,
+    tool name/version, schema version); the result view renders a structured
+    summary + top patterns, falling back to raw JSON.
+- Config: `MaxReferenceUploadBytes`, `AnalysisTimeout`, `MaxConcurrentRuns`
+  (with `AM_*` env overrides).
+
+### Changed
+- `analysis.Analyzer` reworked around `Request{AssayJSON, ReferencePath}` /
+  `Report{RawJSON, tool meta}` with an `Available()` method; the text `Stub` was
+  removed. `results` table gained `reference_name`, `tool_name`, `tool_version`,
+  `schema_version` columns (delete the DB file to apply).
+
 ## [0.1.5] - 2026-07-17
 
 ### Added

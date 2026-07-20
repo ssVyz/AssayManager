@@ -22,12 +22,17 @@ type Server struct {
 	sessions *auth.Manager
 	analyzer analysis.Analyzer
 	tmpl     map[string]*template.Template
+	runSem   chan struct{} // bounds concurrent analysis runs
 }
 
 func New(cfg config.Config, log *slog.Logger, st *store.Store, sessions *auth.Manager, analyzer analysis.Analyzer) (*Server, error) {
 	tmpl, err := parseTemplates()
 	if err != nil {
 		return nil, err
+	}
+	maxRuns := cfg.MaxConcurrentRuns
+	if maxRuns < 1 {
+		maxRuns = 1
 	}
 	return &Server{
 		cfg:      cfg,
@@ -36,6 +41,7 @@ func New(cfg config.Config, log *slog.Logger, st *store.Store, sessions *auth.Ma
 		sessions: sessions,
 		analyzer: analyzer,
 		tmpl:     tmpl,
+		runSem:   make(chan struct{}, maxRuns),
 	}, nil
 }
 
@@ -69,7 +75,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /assays/{id}/edit", s.protected(s.handleAssayEdit))
 
 	mux.HandleFunc("GET /run", s.protected(s.handleRunForm))
-	mux.HandleFunc("POST /run", s.protected(s.handleRunStart))
+	mux.HandleFunc("POST /run", s.protectedUpload(s.handleRunStart))
 	mux.HandleFunc("GET /scheduled", s.protected(s.handleScheduled))
 	mux.HandleFunc("GET /results", s.protected(s.handleResultsList))
 	mux.HandleFunc("GET /results/{id}", s.protected(s.handleResultView))

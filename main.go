@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.1.5"
+const Version = "0.1.6"
 
 func main() {
 	cfg := config.Load()
@@ -60,7 +60,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer st.Close()
 
 	sessions := auth.NewManager(24 * time.Hour)
-	analyzer := analysis.Stub{}
+	analyzer := analysis.NewCLI(cfg.InclusivityBin, cfg.AnalysisTimeout, logger)
 
 	srv, err := web.New(cfg, logger, st, sessions, analyzer)
 	if err != nil {

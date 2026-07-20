@@ -57,8 +57,18 @@ func (s *Server) base(next http.Handler) http.Handler {
 }
 
 // protected requires an authenticated user and, for unsafe methods, a valid
-// CSRF token. It also caps the request body for unsafe methods.
+// CSRF token, capping the request body at the normal (small) form limit.
 func (s *Server) protected(h http.HandlerFunc) http.HandlerFunc {
+	return s.protectedN(s.cfg.MaxUploadBytes, h)
+}
+
+// protectedUpload is like protected but allows a much larger body, for routes
+// that accept a file upload (the reference FASTA).
+func (s *Server) protectedUpload(h http.HandlerFunc) http.HandlerFunc {
+	return s.protectedN(s.cfg.MaxReferenceUploadBytes, h)
+}
+
+func (s *Server) protectedN(maxBytes int64, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := userFrom(r.Context())
 		if user == nil {
@@ -66,7 +76,7 @@ func (s *Server) protected(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if !safeMethod(r.Method) {
-			r.Body = http.MaxBytesReader(w, r.Body, s.cfg.MaxUploadBytes)
+			r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
 			sess := sessionFrom(r.Context())
 			if sess == nil || r.FormValue("csrf_token") != sess.CSRFToken {
 				http.Error(w, "invalid or missing CSRF token", http.StatusForbidden)

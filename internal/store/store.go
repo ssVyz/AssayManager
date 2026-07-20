@@ -43,17 +43,21 @@ type Assay struct {
 }
 
 type Result struct {
-	ID           int64
-	OwnerID      int64
-	AssayID      int64
-	AssayName    string
-	AssayVersion string
-	Status       string
-	Params       string
-	Report       string
-	Error        string
-	StartedAt    time.Time
-	FinishedAt   *time.Time
+	ID            int64
+	OwnerID       int64
+	AssayID       int64
+	AssayName     string
+	AssayVersion  string
+	ReferenceName string
+	Status        string
+	Params        string
+	Report        string
+	Error         string
+	ToolName      string
+	ToolVersion   string
+	SchemaVersion int
+	StartedAt     time.Time
+	FinishedAt    *time.Time
 }
 
 type Store struct{ db *sql.DB }
@@ -106,17 +110,21 @@ CREATE TABLE IF NOT EXISTS assays (
 CREATE INDEX IF NOT EXISTS idx_assays_owner_name ON assays(owner_id, name);
 
 CREATE TABLE IF NOT EXISTS results (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  owner_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  assay_id      INTEGER NOT NULL REFERENCES assays(id) ON DELETE CASCADE,
-  assay_name    TEXT NOT NULL,
-  assay_version TEXT NOT NULL,
-  status        TEXT NOT NULL,
-  params        TEXT NOT NULL DEFAULT '',
-  report        TEXT NOT NULL DEFAULT '',
-  error         TEXT NOT NULL DEFAULT '',
-  started_at    TEXT NOT NULL,
-  finished_at   TEXT
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assay_id       INTEGER NOT NULL REFERENCES assays(id) ON DELETE CASCADE,
+  assay_name     TEXT NOT NULL,
+  assay_version  TEXT NOT NULL,
+  reference_name TEXT NOT NULL DEFAULT '',
+  status         TEXT NOT NULL,
+  params         TEXT NOT NULL DEFAULT '',
+  report         TEXT NOT NULL DEFAULT '',
+  error          TEXT NOT NULL DEFAULT '',
+  tool_name      TEXT NOT NULL DEFAULT '',
+  tool_version   TEXT NOT NULL DEFAULT '',
+  schema_version INTEGER NOT NULL DEFAULT 0,
+  started_at     TEXT NOT NULL,
+  finished_at    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_results_owner ON results(owner_id);
 `
