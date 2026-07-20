@@ -1,10 +1,10 @@
 // Package analysis integrates the inclusivity_check_blast CLI as a subprocess.
 //
 // AssayManager writes the assay (in its own JSON format, which the tool parses
-// directly) to a temp file, runs the binary with --emit-json-stdout against an
-// uploaded reference FASTA, and reads the consolidated JSON back from stdout.
-// The Analyzer interface keeps this behind a seam so callers don't shell out
-// directly (and so a future in-process implementation could replace it).
+// directly) to a temp file, runs the binary against an uploaded reference FASTA,
+// and reads back the consolidated JSON plus the formatted report files (xlsx,
+// txt) which are stored with the result for download. The Analyzer interface
+// keeps this behind a seam.
 package analysis
 
 import (
@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,10 +34,18 @@ type Request struct {
 	ReferencePath string
 }
 
-// Report is the analyzer output: the tool's raw consolidated JSON plus the meta
-// fields pulled out for storage.
+// Artifact is one generated output file (e.g. the xlsx workbook) captured for
+// later download.
+type Artifact struct {
+	Kind    string // "xlsx", "txt"
+	Content []byte
+}
+
+// Report is the analyzer output: the tool's raw consolidated JSON, the captured
+// output files, and the meta fields pulled out for storage.
 type Report struct {
 	RawJSON       []byte
+	Artifacts     []Artifact
 	ToolName      string
 	ToolVersion   string
 	SchemaVersion int
@@ -67,6 +76,23 @@ type ResultMeta struct {
 	Version       string `json:"version"`
 	SchemaVersion int    `json:"schema_version"`
 	Method        string `json:"method"`
+	Oligos        struct {
+		ForwardPrimers []OligoRef `json:"forward_primers"`
+		Probes         []OligoRef `json:"probes"`
+		ReversePrimers []OligoRef `json:"reverse_primers"`
+	} `json:"oligos"`
+}
+
+type OligoRef struct {
+	ID  string `json:"id"`
+	Seq string `json:"seq"`
+}
+
+type MismatchDist struct {
+	ZeroMm  int `json:"zero_mm"`
+	OneMm   int `json:"one_mm"`
+	MoreMm  int `json:"more_mm"`
+	NoMatch int `json:"no_match"`
 }
 
 type ResultSummary struct {
@@ -74,7 +100,12 @@ type ResultSummary struct {
 	SequencesWithMinMatches    int `json:"sequences_with_min_matches"`
 	SequencesWithValidAmplicon int `json:"sequences_with_valid_amplicon"`
 	SequencesFailedAmplicon    int `json:"sequences_failed_amplicon"`
-	Overall                    struct {
+	MismatchDistribution       struct {
+		Forward MismatchDist `json:"forward"`
+		Probe   MismatchDist `json:"probe"`
+		Reverse MismatchDist `json:"reverse"`
+	} `json:"mismatch_distribution"`
+	Overall struct {
 		AllPerfect        int `json:"all_perfect"`
 		MaxOneMismatch    int `json:"max_one_mismatch"`
 		TwoPlusMismatches int `json:"two_plus_mismatches"`
@@ -126,6 +157,213 @@ func ParseResult(raw []byte) (*Result, error) {
 		return nil, fmt.Errorf("unsupported result schema_version %d (want %d)", r.Meta.SchemaVersion, SupportedSchemaVersion)
 	}
 	return &r, nil
+}
+
+// ----------------------------------------------------------------------------
+// Display view-model (mirrors the tool's Excel layout)
+// ----------------------------------------------------------------------------
+
+type OligoCol struct {
+	ID       string
+	Seq      string
+	Category string // "Forward" | "Probe" | "Reverse"
+}
+
+type PatternRow struct {
+	Num             int
+	Cells           []string // one per OligoCol (the per-oligo signature)
+	Count           int
+	Percentage      float64
+	Cumulative      float64
+	TotalMismatches int
+	MatchedFwd      int
+	MatchedRev      int
+	MatchedProbe    int
+	AmpliconLength  string // "" if none
+	Examples        string
+}
+
+type DistCell struct {
+	Count int
+	Pct   float64
+}
+
+type DistRow struct {
+	Label string
+	Zero  DistCell
+	One   DistCell
+	More  DistCell
+	None  DistCell
+}
+
+type OverallRow struct {
+	Label string
+	DistCell
+}
+
+// ResultView is a display-ready projection of a Result: the per-oligo pattern
+// table, per-class mismatch distribution (as percentages), and the overall
+// breakdown — matching the tool's Excel output.
+type ResultView struct {
+	Total          int
+	MeetThresholds int
+	ValidAmplicon  int
+	FailedAmplicon int
+	OligoCols      []OligoCol
+	PatternRows    []PatternRow
+	ClassDist      []DistRow
+	Overall        []OverallRow
+}
+
+// Table builds the display view-model from a parsed Result.
+func (r *Result) Table() ResultView {
+	total := r.Summary.TotalSequences
+
+	var cols []OligoCol
+	for _, o := range r.Meta.Oligos.ForwardPrimers {
+		cols = append(cols, OligoCol{ID: o.ID, Seq: o.Seq, Category: "Forward"})
+	}
+	for _, o := range r.Meta.Oligos.Probes {
+		cols = append(cols, OligoCol{ID: o.ID, Seq: o.Seq, Category: "Probe"})
+	}
+	for _, o := range r.Meta.Oligos.ReversePrimers {
+		cols = append(cols, OligoCol{ID: o.ID, Seq: o.Seq, Category: "Reverse"})
+	}
+	nf := len(r.Meta.Oligos.ForwardPrimers)
+	np := len(r.Meta.Oligos.Probes)
+	nr := len(r.Meta.Oligos.ReversePrimers)
+
+	rows := make([]PatternRow, 0, len(r.Patterns))
+	for _, p := range r.Patterns {
+		amp := ""
+		if p.AmpliconLength != nil {
+			amp = strconv.Itoa(*p.AmpliconLength)
+		}
+		rows = append(rows, PatternRow{
+			Num:             p.Rank,
+			Cells:           splitSignature(p.Signature, nf, np, nr),
+			Count:           p.Count,
+			Percentage:      p.Percentage,
+			Cumulative:      p.CumulativePercentage,
+			TotalMismatches: p.TotalMismatches,
+			MatchedFwd:      p.MatchedFwd,
+			MatchedRev:      p.MatchedRev,
+			MatchedProbe:    p.MatchedProbe,
+			AmpliconLength:  amp,
+			Examples:        exampleIDs(p.MemberIDs),
+		})
+	}
+
+	md := r.Summary.MismatchDistribution
+	classDist := []DistRow{distRow("Forward primers", md.Forward, total)}
+	if np > 0 {
+		classDist = append(classDist, distRow("Probes", md.Probe, total))
+	}
+	classDist = append(classDist, distRow("Reverse primers", md.Reverse, total))
+
+	ov := r.Summary.Overall
+	overall := []OverallRow{
+		{"All categories 0 mismatches", cell(ov.AllPerfect, total)},
+		{"All categories ≤1 mismatch", cell(ov.MaxOneMismatch, total)},
+		{"≥2 mismatches in any category", cell(ov.TwoPlusMismatches, total)},
+		{"No match in any category", cell(ov.NoMatch, total)},
+	}
+
+	return ResultView{
+		Total:          total,
+		MeetThresholds: r.Summary.SequencesWithMinMatches,
+		ValidAmplicon:  r.Summary.SequencesWithValidAmplicon,
+		FailedAmplicon: r.Summary.SequencesFailedAmplicon,
+		OligoCols:      cols,
+		PatternRows:    rows,
+		ClassDist:      classDist,
+		Overall:        overall,
+	}
+}
+
+func distRow(label string, d MismatchDist, total int) DistRow {
+	return DistRow{
+		Label: label,
+		Zero:  cell(d.ZeroMm, total),
+		One:   cell(d.OneMm, total),
+		More:  cell(d.MoreMm, total),
+		None:  cell(d.NoMatch, total),
+	}
+}
+
+func cell(count, total int) DistCell {
+	return DistCell{Count: count, Pct: pct(count, total)}
+}
+
+func pct(count, total int) float64 {
+	if total <= 0 {
+		return 0
+	}
+	return float64(count) / float64(total) * 100.0
+}
+
+func exampleIDs(ids []string) string {
+	n := len(ids)
+	if n == 0 {
+		return ""
+	}
+	show := ids
+	if n > 3 {
+		show = ids[:3]
+	}
+	out := strings.Join(show, ", ")
+	if n > 3 {
+		out += fmt.Sprintf(" (+%d more)", n-3)
+	}
+	return out
+}
+
+// splitSignature splits a combined signature string into one cell per oligo
+// (forward, probe, reverse order), padding missing entries with NO_MATCH. Ported
+// from the tool's Excel reporter so the app's table matches it exactly.
+func splitSignature(signature string, numFwd, numProbes, numRev int) []string {
+	sections := strings.Split(signature, " || ")
+	var all []string
+
+	take := func(section string, n int) {
+		var parts []string
+		if section != "" {
+			parts = strings.Split(section, " | ")
+		}
+		for i := 0; i < n; i++ {
+			if i < len(parts) {
+				all = append(all, parts[i])
+			} else {
+				all = append(all, "NO_MATCH")
+			}
+		}
+	}
+
+	fwdSection := ""
+	if len(sections) >= 1 {
+		fwdSection = sections[0]
+	}
+	take(fwdSection, numFwd)
+
+	if numProbes > 0 {
+		probeSection := ""
+		if len(sections) >= 3 {
+			probeSection = sections[1]
+		}
+		take(probeSection, numProbes)
+	}
+
+	revIdx := 1
+	if numProbes > 0 {
+		revIdx = 2
+	}
+	revSection := ""
+	if len(sections) > revIdx {
+		revSection = sections[revIdx]
+	}
+	take(revSection, numRev)
+
+	return all
 }
 
 // ----------------------------------------------------------------------------
@@ -195,8 +433,9 @@ func (c *CLI) Name() string {
 func (c *CLI) Available() bool { return c.available }
 
 // Run writes the assay to a temp working dir and invokes the binary against the
-// reference FASTA, capturing the consolidated JSON from stdout. The working dir
-// is removed afterwards; the reference file is the caller's to clean up.
+// reference FASTA, requesting the consolidated JSON plus the xlsx and txt report
+// files. It returns the JSON and the captured files. The working dir is removed
+// afterwards; the reference file is the caller's to clean up.
 func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 	if !c.available {
 		return Report{}, errors.New("analysis tool is not available")
@@ -221,10 +460,10 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 	}
 
 	cmd := exec.CommandContext(runCtx, c.binPath,
-		"--emit-json-stdout", "--no-config", "-q",
+		"--json", "--xlsx", "--txt", "--no-config", "-q",
+		"--outdir", dir, "--prefix", "result",
 		assayPath, req.ReferencePath)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
@@ -242,14 +481,30 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 		}
 	}
 
-	raw := bytes.TrimSpace(stdout.Bytes())
-	rep := Report{RawJSON: raw}
-	if res, perr := ParseResult(raw); perr != nil {
+	base := filepath.Join(dir, "result")
+	raw, err := os.ReadFile(base + ".json")
+	if err != nil {
+		return Report{}, fmt.Errorf("read result JSON: %w", err)
+	}
+	raw = bytes.TrimSpace(raw)
+
+	res, perr := ParseResult(raw)
+	if perr != nil {
 		return Report{}, fmt.Errorf("analysis produced unreadable output: %w", perr)
-	} else {
-		rep.ToolName = res.Meta.Tool
-		rep.ToolVersion = res.Meta.Version
-		rep.SchemaVersion = res.Meta.SchemaVersion
+	}
+
+	rep := Report{
+		RawJSON:       raw,
+		ToolName:      res.Meta.Tool,
+		ToolVersion:   res.Meta.Version,
+		SchemaVersion: res.Meta.SchemaVersion,
+	}
+	for _, a := range []struct{ kind, ext string }{{"xlsx", ".xlsx"}, {"txt", ".txt"}} {
+		if b, e := os.ReadFile(base + a.ext); e == nil {
+			rep.Artifacts = append(rep.Artifacts, Artifact{Kind: a.kind, Content: b})
+		} else {
+			c.log.Warn("analysis output missing", "kind", a.kind, "err", e)
+		}
 	}
 	return rep, nil
 }

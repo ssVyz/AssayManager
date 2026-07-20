@@ -9,6 +9,28 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.1.7] - 2026-07-20
+
+### Added
+- Result display reworked to match the tool's Excel output style:
+  - **Mismatch patterns table** with one column per oligo (forward/probe/reverse)
+    showing each oligo's per-pattern signature, plus count, percentage,
+    cumulative %, total mismatches, matched counts, amplicon length, and example
+    sequences. (Ports the tool's signature-splitting.)
+  - **Per-class mismatch distribution** (forward/probe/reverse × 0/1/>1/no-match)
+    shown as `count (pct%)`, and the overall breakdown as percentages.
+- Downloadable outputs: each completed run now generates and stores the tool's
+  Excel (.xlsx), text (.txt), and JSON files (`result_artifacts` table, blobs,
+  cascade-deleted with the result); served from `GET /results/{id}/download/{kind}`
+  with links on the result page. Generated at run time (JSON also served from the
+  stored report). FASTA dumps deferred.
+
+### Changed
+- The analysis run now invokes the tool with `--json --xlsx --txt` to a temp
+  outdir and reads the files back (instead of `--emit-json-stdout`); `Report`
+  carries the captured artifacts. Parsed `Result` extended with `meta.oligos`
+  and `summary.mismatch_distribution`, plus a `Table()` display view-model.
+
 ## [0.1.6] - 2026-07-20
 
 ### Added

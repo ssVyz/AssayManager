@@ -128,6 +128,12 @@ func (s *Server) runAnalysis(resultID int64, assay store.Assay, referencePath st
 	}
 	if err := s.store.CompleteRun(resultID, string(rep.RawJSON), rep.ToolName, rep.ToolVersion, rep.SchemaVersion); err != nil {
 		s.log.Error("complete run", "result", resultID, "err", err)
+		return
+	}
+	for _, a := range rep.Artifacts {
+		if err := s.store.SaveArtifact(resultID, a.Kind, a.Content); err != nil {
+			s.log.Error("save artifact", "result", resultID, "kind", a.Kind, "err", err)
+		}
 	}
 }
 
@@ -208,8 +214,14 @@ func validateAssayForAnalysis(content string) error {
 }
 
 type resultViewData struct {
-	Result store.Result
-	Parsed *analysis.Result // nil if the report is not structured JSON
+	Result    store.Result
+	View      *analysis.ResultView // nil if the report is not structured JSON
+	Downloads []downloadLink
+}
+
+type downloadLink struct {
+	Kind  string
+	Label string
 }
 
 func (s *Server) handleResultsList(w http.ResponseWriter, r *http.Request) {
@@ -244,10 +256,117 @@ func (s *Server) handleResultView(w http.ResponseWriter, r *http.Request) {
 	vd := resultViewData{Result: res}
 	if res.Report != "" {
 		if parsed, perr := analysis.ParseResult([]byte(res.Report)); perr == nil {
-			vd.Parsed = parsed
+			v := parsed.Table()
+			vd.View = &v
 		}
 	}
+	vd.Downloads = s.downloadsFor(res)
+
 	pd := s.page(r, "results", "Result")
 	pd.Data = vd
 	s.render(w, http.StatusOK, "result_view", pd)
+}
+
+var downloadLabels = map[string]string{
+	"xlsx": "Excel (.xlsx)",
+	"txt":  "Text (.txt)",
+	"json": "JSON",
+}
+
+// downloadsFor lists the downloadable outputs for a result: stored artifacts
+// plus JSON (served from the stored report), in a stable order.
+func (s *Server) downloadsFor(res store.Result) []downloadLink {
+	kinds, err := s.store.ArtifactKinds(res.ID)
+	if err != nil {
+		s.log.Error("artifact kinds", "result", res.ID, "err", err)
+	}
+	has := map[string]bool{}
+	for _, k := range kinds {
+		has[k] = true
+	}
+	var out []downloadLink
+	for _, k := range []string{"xlsx", "txt"} {
+		if has[k] {
+			out = append(out, downloadLink{Kind: k, Label: downloadLabels[k]})
+		}
+	}
+	if res.Report != "" {
+		out = append(out, downloadLink{Kind: "json", Label: downloadLabels["json"]})
+	}
+	return out
+}
+
+func (s *Server) handleResultDownload(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+	id, ok := pathID(r)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	res, err := s.store.ResultByID(user.ID, id)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, "load result", err)
+		return
+	}
+
+	kind := r.PathValue("kind")
+	var content []byte
+	var mime string
+	switch kind {
+	case "json":
+		if res.Report == "" {
+			http.NotFound(w, r)
+			return
+		}
+		content = []byte(res.Report)
+		mime = "application/json"
+	case "xlsx":
+		content, err = s.store.Artifact(id, "xlsx")
+		mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case "txt":
+		content, err = s.store.Artifact(id, "txt")
+		mime = "text/plain; charset=utf-8"
+	default:
+		http.Error(w, "unknown download type", http.StatusBadRequest)
+		return
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, "load artifact", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", downloadName(res, kind)))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(content)
+}
+
+// downloadName builds a safe download filename from the assay identity.
+func downloadName(res store.Result, ext string) string {
+	base := sanitizeFilename(res.AssayName + "_" + res.AssayVersion)
+	if base == "" || base == "_" {
+		base = fmt.Sprintf("result_%d", res.ID)
+	}
+	return base + "." + ext
+}
+
+func sanitizeFilename(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
 }

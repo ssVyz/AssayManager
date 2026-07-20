@@ -16,41 +16,79 @@
 {{if eq $r.Status "failed"}}<h2>Error</h2><pre class="code">{{$r.Error}}</pre>{{end}}
 {{if eq $r.Status "running"}}<p class="muted">This run is still in progress — reload to check for updates.</p>{{end}}
 
-{{with .Data.Parsed}}
+{{if .Data.Downloads}}
+<h2>Downloads</h2>
+<p class="actions">
+  {{range .Data.Downloads}}<a class="btn secondary" href="/results/{{$r.ID}}/download/{{.Kind}}">{{.Label}}</a> {{end}}
+</p>
+{{end}}
+
+{{with .Data.View}}
   <h2>Summary</h2>
   <div class="tiles">
-    <div class="tile"><span class="num">{{.Summary.TotalSequences}}</span><span class="lbl">Sequences</span></div>
-    <div class="tile"><span class="num">{{.Summary.SequencesWithMinMatches}}</span><span class="lbl">Meet thresholds</span></div>
-    <div class="tile"><span class="num">{{.Summary.Overall.AllPerfect}}</span><span class="lbl">All perfect</span></div>
-    <div class="tile"><span class="num">{{.Summary.Overall.NoMatch}}</span><span class="lbl">No match</span></div>
+    <div class="tile"><span class="num">{{.Total}}</span><span class="lbl">Sequences</span></div>
+    <div class="tile"><span class="num">{{.MeetThresholds}}</span><span class="lbl">Meet thresholds</span></div>
+    <div class="tile"><span class="num">{{.ValidAmplicon}}</span><span class="lbl">Valid amplicon</span></div>
+    <div class="tile"><span class="num">{{.FailedAmplicon}}</span><span class="lbl">Failed amplicon</span></div>
   </div>
-  <ul class="kv">
-    <li><span>Valid amplicon</span> {{.Summary.SequencesWithValidAmplicon}}</li>
-    <li><span>Failed amplicon</span> {{.Summary.SequencesFailedAmplicon}}</li>
-    <li><span>Max one mismatch</span> {{.Summary.Overall.MaxOneMismatch}}</li>
-    <li><span>Two+ mismatches</span> {{.Summary.Overall.TwoPlusMismatches}}</li>
-  </ul>
 
-  {{if .Patterns}}
-  <h2>Top patterns</h2>
+  <h2>Mismatch distribution</h2>
+  <p class="muted">Best oligo per class, per sequence.</p>
   <table class="grid">
-    <thead><tr><th>Rank</th><th>Count</th><th>%</th><th>Cumulative %</th><th>Total mismatch</th><th>Fwd/Rev/Probe</th></tr></thead>
+    <thead><tr><th>Oligo class</th><th>0 mismatches</th><th>1 mismatch</th><th>&gt;1 mismatch</th><th>No match</th></tr></thead>
     <tbody>
-    {{range .Patterns}}
+    {{range .ClassDist}}
       <tr>
-        <td>{{.Rank}}</td>
-        <td>{{.Count}}</td>
-        <td>{{printf "%.1f" .Percentage}}</td>
-        <td>{{printf "%.1f" .CumulativePercentage}}</td>
-        <td>{{.TotalMismatches}}</td>
-        <td>{{.MatchedFwd}}/{{.MatchedRev}}/{{.MatchedProbe}}</td>
+        <td>{{.Label}}</td>
+        <td>{{.Zero.Count}} ({{printf "%.1f" .Zero.Pct}}%)</td>
+        <td>{{.One.Count}} ({{printf "%.1f" .One.Pct}}%)</td>
+        <td>{{.More.Count}} ({{printf "%.1f" .More.Pct}}%)</td>
+        <td>{{.None.Count}} ({{printf "%.1f" .None.Pct}}%)</td>
       </tr>
     {{end}}
     </tbody>
   </table>
+
+  <h2>Overall</h2>
+  <p class="muted">Worst best-match across all categories.</p>
+  <table class="grid">
+    <tbody>
+    {{range .Overall}}
+      <tr><td>{{.Label}}</td><td>{{.Count}} ({{printf "%.1f" .Pct}}%)</td></tr>
+    {{end}}
+    </tbody>
+  </table>
+
+  {{if .PatternRows}}
+  <h2>Mismatch patterns</h2>
+  <div class="tablewrap">
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>Pattern</th>
+        {{range .OligoCols}}<th>{{.ID}}<br><span class="muted mono small">{{.Seq}}</span></th>{{end}}
+        <th>Count</th><th>%</th><th>Cumul %</th><th>Total mm</th><th>Fwd/Rev/Probe</th><th>Amplicon</th><th>Examples</th>
+      </tr>
+    </thead>
+    <tbody>
+    {{range .PatternRows}}
+      <tr>
+        <td>{{.Num}}</td>
+        {{range .Cells}}<td class="mono">{{.}}</td>{{end}}
+        <td>{{.Count}}</td>
+        <td>{{printf "%.1f" .Percentage}}</td>
+        <td>{{printf "%.1f" .Cumulative}}</td>
+        <td>{{.TotalMismatches}}</td>
+        <td>{{.MatchedFwd}}/{{.MatchedRev}}/{{.MatchedProbe}}</td>
+        <td>{{if .AmpliconLength}}{{.AmpliconLength}}{{else}}—{{end}}</td>
+        <td class="muted">{{.Examples}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
   {{end}}
 
-  <p class="muted">{{len .PerSequence}} per-sequence records (full detail in the raw JSON below).</p>
   <details><summary>Raw JSON</summary><pre class="code">{{$r.Report}}</pre></details>
 {{else}}
   {{if $r.Report}}<h2>Report</h2><pre class="code">{{$r.Report}}</pre>{{end}}

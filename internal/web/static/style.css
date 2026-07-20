@@ -123,6 +123,10 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 .editor .preview { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; overflow: auto; }
 @media (max-width: 860px) { .editor { grid-template-columns: 1fr; } }
 
+/* Wide tables (e.g. the per-oligo pattern table) scroll horizontally. */
+.tablewrap { overflow-x: auto; }
+.small { font-size: .78rem; }
+
 /* Code blocks */
 pre.code { background: #0f1e33; color: #e6edf7; padding: .9rem; border-radius: 8px; overflow-x: auto; font-size: .85rem; }
 details { margin: .6rem 0; }

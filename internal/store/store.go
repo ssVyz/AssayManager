@@ -127,6 +127,15 @@ CREATE TABLE IF NOT EXISTS results (
   finished_at    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_results_owner ON results(owner_id);
+
+CREATE TABLE IF NOT EXISTS result_artifacts (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  result_id  INTEGER NOT NULL REFERENCES results(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL,
+  content    BLOB NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(result_id, kind)
+);
 `
 
 func (s *Store) migrate() error {

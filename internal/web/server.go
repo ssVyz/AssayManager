@@ -79,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /scheduled", s.protected(s.handleScheduled))
 	mux.HandleFunc("GET /results", s.protected(s.handleResultsList))
 	mux.HandleFunc("GET /results/{id}", s.protected(s.handleResultView))
+	mux.HandleFunc("GET /results/{id}/download/{kind}", s.protected(s.handleResultDownload))
 
 	return s.base(mux)
 }
