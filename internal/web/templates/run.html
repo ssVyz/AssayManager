@@ -9,8 +9,8 @@
 </div>
 {{else if .Data.Assays}}
 <p class="muted">
-  Pick an assay version and a reference source. The check runs in the background —
-  follow it under <a href="/results">Check results</a>.
+  Pick an assay version and a reference source. The check runs in the background.
+  Follow it under <a href="/results">Check results</a>.
 </p>
 <form method="post" action="/run" enctype="multipart/form-data" class="stack card narrow">
   <input type="hidden" name="csrf_token" value="{{.CSRF}}">
