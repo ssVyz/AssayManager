@@ -9,6 +9,27 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.2] - 2026-07-21
+
+### Added
+- BLAST reference source for analysis runs. On the Run page, the reference source
+  can be **NCBI BLAST** (in addition to a FASTA upload). BLAST pulls the target
+  taxIDs (`tgtTaxids`) and query region (`refAmpliconSeq`) from the selected
+  assay; the publication **date range** is entered per-run. The run invokes the
+  tool with `--ref-source blast --blast-query … --blast-taxid … --ncbi-email …`.
+  Requires an NCBI contact email (`AM_NCBI_EMAIL`); the BLAST option is hidden and
+  runs are rejected when it isn't set. No API key is used yet.
+- Per-user **BLAST tuning** on the profile page: min coverage, min identity, and
+  hitlist size (`users` columns, defaults 0.9 / 0.6 / 20000), applied to that
+  user's BLAST runs.
+
+### Changed
+- `analysis.Request` gained a `Blast` variant and `analysis.NewCLI` takes the
+  NCBI email/tool; argument construction moved to a unit-tested `buildArgs`
+  (verified without any network/tool call). `store.UpdateProfile` now takes a
+  `Profile` struct. `users` table gained BLAST-tuning columns (delete the DB file
+  to apply).
+
 ## [0.2.1] - 2026-07-21
 
 ### Added

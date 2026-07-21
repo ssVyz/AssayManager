@@ -5,6 +5,19 @@
   <label>Username <input type="text" value="{{.User.Username}}" disabled></label>
   <label>Display name <input type="text" name="name" value="{{.User.Name}}"></label>
   <label>Organisation <input type="text" name="organisation" value="{{.User.Organisation}}"></label>
+
+  <h2>BLAST settings</h2>
+  <p class="muted">Applied to your NCBI BLAST runs.</p>
+  <label>Min coverage (0–1)
+    <input type="number" name="blast_min_coverage" min="0" max="1" step="0.01" value="{{.User.BlastMinCoverage}}" required>
+  </label>
+  <label>Min identity (0–1)
+    <input type="number" name="blast_min_identity" min="0" max="1" step="0.01" value="{{.User.BlastMinIdentity}}" required>
+  </label>
+  <label>Hitlist size
+    <input type="number" name="blast_hitlist_size" min="1" step="1" value="{{.User.BlastHitlistSize}}" required>
+  </label>
+
   <button type="submit">Save</button>
 </form>
 {{end}}

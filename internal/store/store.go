@@ -31,6 +31,11 @@ type User struct {
 	Organisation string
 	PwHash       string
 	CreatedAt    time.Time
+
+	// Per-user BLAST tuning (applied to this user's BLAST runs).
+	BlastMinCoverage float64
+	BlastMinIdentity float64
+	BlastHitlistSize int
 }
 
 type Assay struct {
@@ -90,12 +95,15 @@ func (s *Store) Close() error { return s.db.Close() }
 
 const schema = `
 CREATE TABLE IF NOT EXISTS users (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  name          TEXT NOT NULL DEFAULT '',
-  organisation  TEXT NOT NULL DEFAULT '',
-  pw_hash       TEXT NOT NULL,
-  created_at    TEXT NOT NULL
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  username           TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  name               TEXT NOT NULL DEFAULT '',
+  organisation       TEXT NOT NULL DEFAULT '',
+  pw_hash            TEXT NOT NULL,
+  created_at         TEXT NOT NULL,
+  blast_min_coverage REAL NOT NULL DEFAULT 0.9,
+  blast_min_identity REAL NOT NULL DEFAULT 0.6,
+  blast_hitlist_size INTEGER NOT NULL DEFAULT 20000
 );
 
 CREATE TABLE IF NOT EXISTS assays (

@@ -27,11 +27,26 @@ import (
 // understands. Assert on schema_version, never on the tool's version.
 const SupportedSchemaVersion = 1
 
-// Request is the analyzer input: the assay as AssayManager-format JSON and a
-// path to a reference FASTA already written to disk.
+// Request is the analyzer input: the assay as AssayManager-format JSON plus a
+// reference source. Exactly one source is used: a local FASTA file
+// (ReferencePath, file mode) or a BLAST search (Blast, BLAST mode).
 type Request struct {
 	AssayJSON     []byte
-	ReferencePath string
+	ReferencePath string       // file mode: path to a reference FASTA on disk
+	Blast         *BlastParams // BLAST mode: fetch reference sequences from NCBI
+}
+
+// BlastParams drives the NCBI BLAST reference source. Query and TaxIDs come from
+// the assay; From/To are the optional per-run publication-date range
+// (YYYY/MM/DD); the thresholds come from the user's profile.
+type BlastParams struct {
+	Query       string // the target region (assay refAmpliconSeq)
+	TaxIDs      []int  // target taxIDs (assay tgtTaxids)
+	From        string // optional, YYYY/MM/DD
+	To          string // optional, YYYY/MM/DD
+	MinCoverage float64
+	MinIdentity float64
+	HitlistSize int
 }
 
 // Artifact is one generated output file (e.g. the xlsx workbook) captured for
@@ -57,6 +72,9 @@ type Analyzer interface {
 	// Available reports whether the analyzer can actually run (binary present
 	// and compatible). The web layer uses this to enable/disable the run UI.
 	Available() bool
+	// BlastAvailable reports whether BLAST runs can be started (available plus an
+	// NCBI email configured).
+	BlastAvailable() bool
 	Run(ctx context.Context, req Request) (Report, error)
 }
 
@@ -385,14 +403,17 @@ type CLI struct {
 	log       *slog.Logger
 	available bool
 	caps      capabilities
+	ncbiEmail string
+	ncbiTool  string
 }
 
 // NewCLI resolves the binary, runs a --capabilities health check, and returns a
 // CLI. If the binary is missing or its schema is incompatible, the returned CLI
 // reports Available() == false (the caller then disables the run feature). It
-// never returns an error — analysis is an optional feature.
-func NewCLI(binPath string, timeout time.Duration, log *slog.Logger) *CLI {
-	c := &CLI{timeout: timeout, log: log}
+// never returns an error — analysis is an optional feature. ncbiEmail/ncbiTool
+// enable the BLAST reference source (see BlastAvailable).
+func NewCLI(binPath string, timeout time.Duration, ncbiEmail, ncbiTool string, log *slog.Logger) *CLI {
+	c := &CLI{timeout: timeout, log: log, ncbiEmail: ncbiEmail, ncbiTool: ncbiTool}
 
 	resolved, ok := resolveBinary(binPath)
 	if !ok {
@@ -432,6 +453,10 @@ func (c *CLI) Name() string {
 
 func (c *CLI) Available() bool { return c.available }
 
+// BlastAvailable reports whether BLAST runs can be started: the tool must be
+// available and an NCBI contact email must be configured.
+func (c *CLI) BlastAvailable() bool { return c.available && c.ncbiEmail != "" }
+
 // Run writes the assay to a temp working dir and invokes the binary against the
 // reference FASTA, requesting the consolidated JSON plus the xlsx and txt report
 // files. It returns the JSON and the captured files. The working dir is removed
@@ -439,6 +464,9 @@ func (c *CLI) Available() bool { return c.available }
 func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 	if !c.available {
 		return Report{}, errors.New("analysis tool is not available")
+	}
+	if req.Blast != nil && c.ncbiEmail == "" {
+		return Report{}, errors.New("BLAST requires an NCBI contact email (AM_NCBI_EMAIL)")
 	}
 
 	dir, err := os.MkdirTemp("", "am-run-*")
@@ -459,10 +487,7 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(runCtx, c.binPath,
-		"--json", "--xlsx", "--txt", "--no-config", "-q",
-		"--outdir", dir, "--prefix", "result",
-		assayPath, req.ReferencePath)
+	cmd := exec.CommandContext(runCtx, c.binPath, c.buildArgs(dir, req)...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
@@ -507,6 +532,56 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 		}
 	}
 	return rep, nil
+}
+
+// buildArgs assembles the CLI arguments for a run. Common output flags are
+// shared; the reference source differs: file mode appends the reference path as
+// the trailing positional, BLAST mode adds the --ref-source blast flags (and no
+// reference positional). Kept separate from Run so it can be unit-tested without
+// invoking the binary or touching the network.
+func (c *CLI) buildArgs(dir string, req Request) []string {
+	assayPath := filepath.Join(dir, "assay.json")
+	args := []string{
+		"--json", "--xlsx", "--txt", "--no-config", "-q",
+		"--outdir", dir, "--prefix", "result",
+	}
+	if req.Blast != nil {
+		b := req.Blast
+		args = append(args, "--ref-source", "blast",
+			"--blast-query", b.Query,
+			"--blast-taxid", joinInts(b.TaxIDs))
+		if b.From != "" {
+			args = append(args, "--blast-from", b.From)
+		}
+		if b.To != "" {
+			args = append(args, "--blast-to", b.To)
+		}
+		if b.MinCoverage > 0 {
+			args = append(args, "--blast-min-coverage", strconv.FormatFloat(b.MinCoverage, 'g', -1, 64))
+		}
+		if b.MinIdentity > 0 {
+			args = append(args, "--blast-min-identity", strconv.FormatFloat(b.MinIdentity, 'g', -1, 64))
+		}
+		if b.HitlistSize > 0 {
+			args = append(args, "--blast-hitlist-size", strconv.Itoa(b.HitlistSize))
+		}
+		args = append(args, "--ncbi-email", c.ncbiEmail)
+		if c.ncbiTool != "" {
+			args = append(args, "--ncbi-tool", c.ncbiTool)
+		}
+		args = append(args, assayPath)
+	} else {
+		args = append(args, assayPath, req.ReferencePath)
+	}
+	return args
+}
+
+func joinInts(ns []int) string {
+	parts := make([]string, len(ns))
+	for i, n := range ns {
+		parts[i] = strconv.Itoa(n)
+	}
+	return strings.Join(parts, ",")
 }
 
 // resolveBinary returns the usable binary path. It accepts the configured path

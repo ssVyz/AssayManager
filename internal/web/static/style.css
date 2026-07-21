@@ -144,6 +144,10 @@ code { background: var(--blue-050); padding: .05rem .3rem; border-radius: 4px; }
 .status.failed { color: var(--err); }
 .danger-zone { margin-top: 1.5rem; }
 
+/* Fieldsets */
+.stack fieldset { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: .7rem 1rem 1rem; margin: 0; }
+.stack fieldset legend { font-weight: 600; color: var(--blue-700); padding: 0 .4rem; font-size: .9rem; }
+
 /* Add-oligo helper */
 fieldset.addoligo { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1rem 1rem; margin: 0; }
 fieldset.addoligo legend { font-weight: 600; color: var(--blue-700); padding: 0 .4rem; }

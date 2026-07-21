@@ -9,8 +9,8 @@
 </div>
 {{else if .Data.Assays}}
 <p class="muted">
-  Pick an assay version and upload a reference sequence set (FASTA). The check runs in the
-  background — follow it under <a href="/results">Check results</a>.
+  Pick an assay version and a reference source. The check runs in the background —
+  follow it under <a href="/results">Check results</a>.
 </p>
 <form method="post" action="/run" enctype="multipart/form-data" class="stack card narrow">
   <input type="hidden" name="csrf_token" value="{{.CSRF}}">
@@ -19,11 +19,31 @@
       {{range .Data.Assays}}<option value="{{.ID}}">{{.Name}} {{.Version}}</option>{{end}}
     </select>
   </label>
-  <label>Reference sequences (FASTA)
-    <input type="file" name="reference" accept=".fasta,.fa,.fna,.txt" required>
+  <label>Reference source
+    <select name="source" required>
+      <option value="file">Reference file (upload FASTA)</option>
+      {{if .Data.BlastAvailable}}<option value="blast">NCBI BLAST (uses the assay's target taxIDs + reference amplicon)</option>{{end}}
+    </select>
   </label>
+
+  <fieldset>
+    <legend>File source</legend>
+    <label>Reference sequences (FASTA)
+      <input type="file" name="reference" accept=".fasta,.fa,.fna,.txt">
+    </label>
+  </fieldset>
+
+  {{if .Data.BlastAvailable}}
+  <fieldset>
+    <legend>NCBI BLAST source</legend>
+    <p class="muted">TaxIDs and query region come from the selected assay. Optionally restrict by publication date:</p>
+    <label>Published from <input type="date" name="blast_from"></label>
+    <label>Published to <input type="date" name="blast_to"></label>
+  </fieldset>
+  {{end}}
+
   <label>Notes (optional)
-    <textarea name="params" rows="3" placeholder="free-form notes"></textarea>
+    <textarea name="params" rows="2" placeholder="free-form notes"></textarea>
   </label>
   <button type="submit">Start run</button>
 </form>

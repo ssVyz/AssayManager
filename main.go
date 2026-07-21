@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.2.1"
+const Version = "0.2.2"
 
 func main() {
 	// Load .env first so it can supply any AM_* setting (real env vars win).
@@ -73,7 +73,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer st.Close()
 
 	sessions := auth.NewManager(24 * time.Hour)
-	analyzer := analysis.NewCLI(cfg.InclusivityBin, cfg.AnalysisTimeout, logger)
+	analyzer := analysis.NewCLI(cfg.InclusivityBin, cfg.AnalysisTimeout, cfg.NCBIEmail, cfg.NCBITool, logger)
 
 	srv, err := web.New(cfg, logger, st, sessions, analyzer)
 	if err != nil {

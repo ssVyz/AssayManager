@@ -2,7 +2,10 @@ package web
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
+
+	"AssayManager/internal/store"
 )
 
 type dashboardData struct {
@@ -46,9 +49,24 @@ func (s *Server) handleProfile(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleProfileSave(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r.Context())
-	name := strings.TrimSpace(r.FormValue("name"))
-	org := strings.TrimSpace(r.FormValue("organisation"))
-	if err := s.store.UpdateProfile(user.ID, name, org); err != nil {
+
+	cov, errCov := strconv.ParseFloat(strings.TrimSpace(r.FormValue("blast_min_coverage")), 64)
+	ident, errID := strconv.ParseFloat(strings.TrimSpace(r.FormValue("blast_min_identity")), 64)
+	hits, errHits := strconv.Atoi(strings.TrimSpace(r.FormValue("blast_hitlist_size")))
+	if errCov != nil || errID != nil || errHits != nil ||
+		cov <= 0 || cov > 1 || ident <= 0 || ident > 1 || hits <= 0 {
+		http.Redirect(w, r, "/profile?msg=bad_profile", http.StatusSeeOther)
+		return
+	}
+
+	p := store.Profile{
+		Name:             strings.TrimSpace(r.FormValue("name")),
+		Organisation:     strings.TrimSpace(r.FormValue("organisation")),
+		BlastMinCoverage: cov,
+		BlastMinIdentity: ident,
+		BlastHitlistSize: hits,
+	}
+	if err := s.store.UpdateProfile(user.ID, p); err != nil {
 		s.serverError(w, "update profile", err)
 		return
 	}

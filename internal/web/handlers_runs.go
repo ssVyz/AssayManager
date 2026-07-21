@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"AssayManager/internal/analysis"
@@ -17,9 +18,10 @@ import (
 )
 
 type runFormData struct {
-	Assays    []store.Assay
-	Available bool
-	Error     string
+	Assays         []store.Assay
+	Available      bool
+	BlastAvailable bool
+	Error          string
 }
 
 func (s *Server) handleRunForm(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +32,7 @@ func (s *Server) handleRunForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pd := s.page(r, "run", "Run check")
-	pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available()}
+	pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available(), BlastAvailable: s.analyzer.BlastAvailable()}
 	s.render(w, http.StatusOK, "run", pd)
 }
 
@@ -40,7 +42,7 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 	renderErr := func(status int, msg string) {
 		assays, _ := s.store.ListAllAssays(user.ID)
 		pd := s.page(r, "run", "Run check")
-		pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available(), Error: msg}
+		pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available(), BlastAvailable: s.analyzer.BlastAvailable(), Error: msg}
 		s.render(w, status, "run", pd)
 	}
 
@@ -70,33 +72,63 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reference FASTA upload → temp file (persisted past this request).
-	file, header, err := r.FormFile("reference")
-	if err != nil {
-		renderErr(http.StatusBadRequest, "Upload a reference sequence set (FASTA).")
-		return
-	}
-	defer file.Close()
+	params := strings.TrimSpace(r.FormValue("params"))
+	req := analysis.Request{AssayJSON: []byte(assay.Content)}
+	var referenceName, cleanupPath string
 
-	refPath, err := saveReferenceUpload(file)
-	if err != nil {
-		if errors.Is(err, errEmptyOrNotFasta) {
-			renderErr(http.StatusBadRequest, "The uploaded file is empty or does not look like FASTA (expected a line starting with '>').")
+	switch r.FormValue("source") {
+	case "blast":
+		if !s.analyzer.BlastAvailable() {
+			renderErr(http.StatusServiceUnavailable, "BLAST is not configured on this server (no NCBI email).")
 			return
 		}
-		s.serverError(w, "save reference upload", err)
-		return
-	}
+		query, taxids, verr := blastInputsFromAssay(assay.Content)
+		if verr != nil {
+			renderErr(http.StatusBadRequest, verr.Error())
+			return
+		}
+		from := slashDate(r.FormValue("blast_from"))
+		to := slashDate(r.FormValue("blast_to"))
+		req.Blast = &analysis.BlastParams{
+			Query:       query,
+			TaxIDs:      taxids,
+			From:        from,
+			To:          to,
+			MinCoverage: user.BlastMinCoverage,
+			MinIdentity: user.BlastMinIdentity,
+			HitlistSize: user.BlastHitlistSize,
+		}
+		referenceName = blastDescriptor(taxids, from, to)
 
-	referenceName := "reference.fasta"
-	if header != nil && header.Filename != "" {
-		referenceName = header.Filename
+	default: // file upload
+		file, header, ferr := r.FormFile("reference")
+		if ferr != nil {
+			renderErr(http.StatusBadRequest, "Upload a reference sequence set (FASTA).")
+			return
+		}
+		defer file.Close()
+		refPath, serr := saveReferenceUpload(file)
+		if serr != nil {
+			if errors.Is(serr, errEmptyOrNotFasta) {
+				renderErr(http.StatusBadRequest, "The uploaded file is empty or does not look like FASTA (expected a line starting with '>').")
+				return
+			}
+			s.serverError(w, "save reference upload", serr)
+			return
+		}
+		req.ReferencePath = refPath
+		cleanupPath = refPath
+		referenceName = "reference.fasta"
+		if header != nil && header.Filename != "" {
+			referenceName = header.Filename
+		}
 	}
-	params := strings.TrimSpace(r.FormValue("params"))
 
 	resultID, err := s.store.CreateRun(user.ID, assay, params, referenceName)
 	if err != nil {
-		os.Remove(refPath)
+		if cleanupPath != "" {
+			os.Remove(cleanupPath)
+		}
 		s.serverError(w, "create run", err)
 		return
 	}
@@ -104,22 +136,68 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 	// Run in the background (bounded). The results row already exists; this
 	// goroutine fills it in when done. If the server dies mid-run, the row is
 	// left "running" (orphaned), per the MVP model.
-	go s.runAnalysis(resultID, assay, refPath)
+	go s.runAnalysis(resultID, req, cleanupPath)
 
 	http.Redirect(w, r, "/results?msg=run_started", http.StatusSeeOther)
 }
 
-func (s *Server) runAnalysis(resultID int64, assay store.Assay, referencePath string) {
-	defer os.Remove(referencePath)
+// blastInputsFromAssay pulls the BLAST query region (refAmpliconSeq) and target
+// taxIDs (tgtTaxids) from a stored assay, validating that both are present.
+func blastInputsFromAssay(content string) (query string, taxids []int, err error) {
+	var va assayparser.ValidAssay
+	if e := json.Unmarshal([]byte(content), &va); e != nil {
+		return "", nil, errors.New("stored assay could not be decoded")
+	}
+	query = strings.TrimSpace(va.Targets.RefAmpliconSeq)
+	if query == "" {
+		return "", nil, errors.New("this assay has no reference amplicon (targets.refAmpliconSeq), which BLAST requires")
+	}
+	if len(va.Targets.TgtTaxids) == 0 {
+		return "", nil, errors.New("this assay has no target taxIDs (targets.tgtTaxids), which BLAST requires")
+	}
+	return query, va.Targets.TgtTaxids, nil
+}
+
+// slashDate converts an HTML date input (YYYY-MM-DD) to the tool's YYYY/MM/DD.
+func slashDate(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	return strings.ReplaceAll(s, "-", "/")
+}
+
+func blastDescriptor(taxids []int, from, to string) string {
+	d := "NCBI BLAST · taxids " + joinInts(taxids)
+	switch {
+	case from != "" && to != "":
+		d += " · " + from + "–" + to
+	case from != "":
+		d += " · from " + from
+	case to != "":
+		d += " · to " + to
+	}
+	return d
+}
+
+func joinInts(ns []int) string {
+	parts := make([]string, len(ns))
+	for i, n := range ns {
+		parts[i] = strconv.Itoa(n)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func (s *Server) runAnalysis(resultID int64, req analysis.Request, cleanupPath string) {
+	if cleanupPath != "" {
+		defer os.Remove(cleanupPath)
+	}
 
 	// Bound concurrency: each run is internally parallel, so cap simultaneous runs.
 	s.runSem <- struct{}{}
 	defer func() { <-s.runSem }()
 
-	rep, err := s.analyzer.Run(context.Background(), analysis.Request{
-		AssayJSON:     []byte(assay.Content),
-		ReferencePath: referencePath,
-	})
+	rep, err := s.analyzer.Run(context.Background(), req)
 	if err != nil {
 		if ferr := s.store.FailRun(resultID, err.Error()); ferr != nil {
 			s.log.Error("fail run", "result", resultID, "err", ferr)
