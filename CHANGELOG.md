@@ -9,6 +9,17 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.1] - 2026-07-21
+
+### Added
+- `.env` support: a gitignored `.env` file in the working directory is read at
+  startup (custom stdlib parser — `KEY=VALUE`, `#` comments, quotes, CRLF-safe,
+  optional `export` prefix). Real OS environment variables take precedence; a
+  missing file is not an error. Committed `example.env` as a template.
+- Config for the (upcoming) BLAST reference source: `AM_NCBI_EMAIL`,
+  `AM_NCBI_TOOL` (default `AssayManager`), `AM_NCBI_API_KEY`. The email is logged
+  at startup when set; the API key is never logged.
+
 ## [0.2.0] - 2026-07-20
 
 Milestone release (human-requested minor bump): the file-based inclusivity

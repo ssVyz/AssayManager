@@ -25,6 +25,10 @@ kept thin so it can later back a JSON API.
   the background, storing the consolidated JSON plus downloadable Excel/text/JSON
   reports. It's optional — the run feature is disabled if the binary is absent.
 - **No migrations yet:** delete the DB file to reset the schema.
+- **Configuration** comes from flags and `AM_*` environment variables. For
+  convenience, a gitignored `.env` file in the working directory is also read at
+  startup (real env vars take precedence). Copy `example.env` to `.env` and fill
+  in values — notably `AM_NCBI_EMAIL` for the (upcoming) BLAST reference source.
 
 ## Build & run
 

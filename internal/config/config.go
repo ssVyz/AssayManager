@@ -19,6 +19,10 @@ type Config struct {
 	MaxReferenceUploadBytes int64         // cap on the reference FASTA upload
 	AnalysisTimeout         time.Duration // per-run analysis timeout
 	MaxConcurrentRuns       int           // bound on simultaneous analysis runs
+
+	NCBIEmail  string // NCBI contact email (enables the BLAST reference source)
+	NCBITool   string // NCBI tool name sent with requests
+	NCBIAPIKey string // NCBI API key (optional; secret — never log it)
 }
 
 // Load parses flags (with env fallbacks) and returns the configuration.
@@ -33,6 +37,10 @@ func Load() Config {
 		MaxReferenceUploadBytes: envBytes("AM_MAX_REF_UPLOAD", 50<<20), // 50 MiB
 		AnalysisTimeout:         envDuration("AM_ANALYSIS_TIMEOUT", 30*time.Minute),
 		MaxConcurrentRuns:       envInt("AM_MAX_CONCURRENT_RUNS", 2),
+
+		NCBIEmail:  envOr("AM_NCBI_EMAIL", ""),
+		NCBITool:   envOr("AM_NCBI_TOOL", "AssayManager"),
+		NCBIAPIKey: envOr("AM_NCBI_API_KEY", ""),
 	}
 	flag.StringVar(&c.Addr, "addr", c.Addr, "HTTP listen address")
 	flag.StringVar(&c.DBPath, "db", c.DBPath, "path to the SQLite database file")

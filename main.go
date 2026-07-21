@@ -25,9 +25,11 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.2.0"
+const Version = "0.2.1"
 
 func main() {
+	// Load .env first so it can supply any AM_* setting (real env vars win).
+	envLoaded, envErr := config.LoadEnvFile(".env")
 	cfg := config.Load()
 
 	// Log to both the console and an append-only file, so session history
@@ -39,6 +41,17 @@ func main() {
 	}
 	defer logFile.Close()
 	logger := slog.New(slog.NewTextHandler(io.MultiWriter(os.Stdout, logFile), nil))
+
+	if envErr != nil {
+		logger.Warn("could not fully read .env", "err", envErr)
+	}
+	if envLoaded > 0 {
+		logger.Info(".env loaded", "vars", envLoaded)
+	}
+	if cfg.NCBIEmail != "" {
+		// The email is a contact address (not secret); the API key is never logged.
+		logger.Info("NCBI contact configured", "email", cfg.NCBIEmail)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
