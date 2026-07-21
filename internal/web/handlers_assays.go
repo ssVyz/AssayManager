@@ -17,8 +17,8 @@ import (
 
 const skeletonYAML = `header:
   name: "New assay"
-  author: ""
-  description: ""
+  author: "testauthor"
+  description: "test"
 oligos:
   oligoList:
     - name: "Fwd"
@@ -33,6 +33,7 @@ oligos:
 targets:
   tgtTaxids: []
   offTaxids: []
+  refAmpliconSeq: ""
 `
 
 type assayFormData struct {
