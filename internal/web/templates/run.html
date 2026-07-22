@@ -47,6 +47,34 @@
   </label>
   <button type="submit">Start run</button>
 </form>
+
+{{if .Data.BlastAvailable}}
+<section class="card mt">
+  <h2>Batch BLAST</h2>
+  <p class="muted">Run an NCBI BLAST check on several assays at once (the latest version of each).
+    The date range applies to all. Each check runs in the background — follow them under
+    <a href="/results">Check results</a>.</p>
+  <form method="post" action="/run/batch" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <table class="grid">
+      <thead><tr><th></th><th>Assay</th><th>Version</th><th>BLAST</th></tr></thead>
+      <tbody>
+      {{range .Data.BatchAssays}}
+        <tr>
+          <td>{{if .Eligible}}<input type="checkbox" name="id" value="{{.ID}}" aria-label="select {{.Name}}">{{end}}</td>
+          <td>{{.Name}}</td>
+          <td>{{.Version}}</td>
+          <td>{{if .Eligible}}<span class="status done">eligible</span>{{else}}<span class="muted">— {{.Reason}}</span>{{end}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    <label>Published from <input type="date" name="blast_from"></label>
+    <label>Published to <input type="date" name="blast_to"></label>
+    <button type="submit">Run BLAST on selected</button>
+  </form>
+</section>
+{{end}}
 {{else}}
 <p class="muted">You need an assay first. <a href="/assays/new">Create one</a>.</p>
 {{end}}

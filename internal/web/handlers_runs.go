@@ -18,21 +18,57 @@ import (
 )
 
 type runFormData struct {
-	Assays         []store.Assay
+	Assays         []store.Assay   // all versions, for the single-run selector
+	BatchAssays    []batchAssayRow // latest per lineage, for the batch-BLAST list
 	Available      bool
 	BlastAvailable bool
 	Error          string
 }
 
+// batchAssayRow is one row of the batch-BLAST list: the latest version of a
+// lineage, with whether it's eligible for a BLAST check and, if not, why.
+type batchAssayRow struct {
+	ID       int64
+	Name     string
+	Version  string
+	Eligible bool
+	Reason   string
+}
+
+// buildRunFormData assembles the data for the Run page: the single-run assay
+// selector, and the batch-BLAST list (latest version of each lineage annotated
+// with BLAST eligibility).
+func (s *Server) buildRunFormData(userID int64) (runFormData, error) {
+	assays, err := s.store.ListAllAssays(userID)
+	if err != nil {
+		return runFormData{}, err
+	}
+	lineages, err := s.store.ListLineages(userID)
+	if err != nil {
+		return runFormData{}, err
+	}
+	batch := make([]batchAssayRow, 0, len(lineages))
+	for _, a := range lineages {
+		ok, reason := blastEligibility(a.Content)
+		batch = append(batch, batchAssayRow{ID: a.ID, Name: a.Name, Version: a.Version, Eligible: ok, Reason: reason})
+	}
+	return runFormData{
+		Assays:         assays,
+		BatchAssays:    batch,
+		Available:      s.analyzer.Available(),
+		BlastAvailable: s.analyzer.BlastAvailable(),
+	}, nil
+}
+
 func (s *Server) handleRunForm(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r.Context())
-	assays, err := s.store.ListAllAssays(user.ID)
+	data, err := s.buildRunFormData(user.ID)
 	if err != nil {
-		s.serverError(w, "list assays", err)
+		s.serverError(w, "build run form", err)
 		return
 	}
 	pd := s.page(r, "run", "Run check")
-	pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available(), BlastAvailable: s.analyzer.BlastAvailable()}
+	pd.Data = data
 	s.render(w, http.StatusOK, "run", pd)
 }
 
@@ -40,9 +76,10 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r.Context())
 
 	renderErr := func(status int, msg string) {
-		assays, _ := s.store.ListAllAssays(user.ID)
+		data, _ := s.buildRunFormData(user.ID)
+		data.Error = msg
 		pd := s.page(r, "run", "Run check")
-		pd.Data = runFormData{Assays: assays, Available: s.analyzer.Available(), BlastAvailable: s.analyzer.BlastAvailable(), Error: msg}
+		pd.Data = data
 		s.render(w, status, "run", pd)
 	}
 
@@ -188,6 +225,108 @@ func joinInts(ns []int) string {
 	return strings.Join(parts, ", ")
 }
 
+// blastEligibility reports whether an assay can run a BLAST check, and if not,
+// a short reason for display.
+func blastEligibility(content string) (bool, string) {
+	if err := validateAssayForAnalysis(content); err != nil {
+		return false, err.Error()
+	}
+	var va assayparser.ValidAssay
+	if err := json.Unmarshal([]byte(content), &va); err != nil {
+		return false, "unreadable assay"
+	}
+	if strings.TrimSpace(va.Targets.RefAmpliconSeq) == "" {
+		return false, "no reference amplicon"
+	}
+	if len(va.Targets.TgtTaxids) == 0 {
+		return false, "no target taxIDs"
+	}
+	return true, ""
+}
+
+// handleRunBatch starts a BLAST check for each selected assay (latest version),
+// with one shared publication-date range. Ineligible or vanished selections are
+// skipped and counted. Each run is a bounded background goroutine, as for a
+// single run.
+func (s *Server) handleRunBatch(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+
+	if !s.analyzer.BlastAvailable() {
+		http.Redirect(w, r, "/run?msg=blast_off", http.StatusSeeOther)
+		return
+	}
+	ids := r.PostForm["id"]
+	if len(ids) == 0 {
+		http.Redirect(w, r, "/run?msg=batch_none", http.StatusSeeOther)
+		return
+	}
+	from := slashDate(r.FormValue("blast_from"))
+	to := slashDate(r.FormValue("blast_to"))
+
+	var started, skipped int
+	for _, raw := range ids {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			skipped++
+			continue
+		}
+		assay, err := s.store.AssayByID(user.ID, id)
+		if errors.Is(err, store.ErrNotFound) {
+			skipped++
+			continue
+		}
+		if err != nil {
+			s.serverError(w, "load assay", err)
+			return
+		}
+		query, taxids, verr := blastInputsFromAssay(assay.Content)
+		if verr != nil || validateAssayForAnalysis(assay.Content) != nil {
+			skipped++
+			continue
+		}
+
+		req := analysis.Request{
+			AssayJSON: []byte(assay.Content),
+			Blast: &analysis.BlastParams{
+				Query:       query,
+				TaxIDs:      taxids,
+				From:        from,
+				To:          to,
+				MinCoverage: user.BlastMinCoverage,
+				MinIdentity: user.BlastMinIdentity,
+				HitlistSize: user.BlastHitlistSize,
+			},
+		}
+		resultID, err := s.store.CreateRun(user.ID, assay, "", blastDescriptor(taxids, from, to))
+		if err != nil {
+			s.serverError(w, "create run", err)
+			return
+		}
+		go s.runAnalysis(resultID, req, "")
+		started++
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/results?started=%d&skipped=%d", started, skipped), http.StatusSeeOther)
+}
+
+// runBatchSummaryFlash builds the post-batch summary from redirect query params,
+// or ("","") if none present.
+func runBatchSummaryFlash(r *http.Request) (text, kind string) {
+	q := r.URL.Query()
+	if q.Get("started") == "" && q.Get("skipped") == "" {
+		return "", ""
+	}
+	started := atoiOr0(q.Get("started"))
+	skipped := atoiOr0(q.Get("skipped"))
+	if started == 0 {
+		return fmt.Sprintf("No BLAST runs started (%d skipped as ineligible).", skipped), "err"
+	}
+	if skipped > 0 {
+		return fmt.Sprintf("Started %d BLAST run(s); skipped %d ineligible.", started, skipped), "ok"
+	}
+	return fmt.Sprintf("Started %d BLAST run(s).", started), "ok"
+}
+
 func (s *Server) runAnalysis(resultID int64, req analysis.Request, cleanupPath string) {
 	if cleanupPath != "" {
 		defer os.Remove(cleanupPath)
@@ -310,6 +449,9 @@ func (s *Server) handleResultsList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pd := s.page(r, "results", "Check results")
+	if txt, kind := runBatchSummaryFlash(r); txt != "" {
+		pd.Flash, pd.FlashKind = txt, kind
+	}
 	pd.Data = results
 	s.render(w, http.StatusOK, "results_list", pd)
 }

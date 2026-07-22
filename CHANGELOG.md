@@ -9,6 +9,18 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.4] - 2026-07-21
+
+### Added
+- Batch BLAST runs. The Run check page now has a "Batch BLAST" section listing
+  the latest version of each assay with its BLAST eligibility; select any number
+  of eligible assays, set one shared publication-date range, and submit
+  (`POST /run/batch`) to start one background BLAST run per assay. Ineligible
+  assays are shown with a reason (no amplicon / no taxIDs / gate failure) and
+  aren't selectable. Concurrency uses the existing run cap
+  (`AM_MAX_CONCURRENT_RUNS`); the Check results page shows a started/skipped
+  summary. File-source runs remain single (each needs its own upload).
+
 ## [0.2.3] - 2026-07-21
 
 ### Added

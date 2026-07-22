@@ -95,6 +95,8 @@ var flashes = map[string]struct{ Kind, Text string }{
 	"export_none":    {"err", "Select at least one assay to export."},
 	"import_nofile":  {"err", "Choose a file to import."},
 	"import_bad":     {"err", "Could not read that file as an assay export (expected JSON or YAML with an 'assays' list)."},
+	"batch_none":     {"err", "Select at least one eligible assay to run."},
+	"blast_off":      {"err", "BLAST is not configured on this server (no NCBI email)."},
 }
 
 func flashFromQuery(r *http.Request) (text, kind string) {
