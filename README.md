@@ -21,14 +21,17 @@ kept thin so it can later back a JSON API.
 
 - **Assays** are versioned immutably (`vMAJOR.MINOR`; each save is a new row). The
   JSON header is authoritative for name and version; DB columns are derived.
-- **Analysis** runs the external tool against a user-uploaded reference FASTA in
-  the background, storing the consolidated JSON plus downloadable Excel/text/JSON
-  reports. It's optional — the run feature is disabled if the binary is absent.
+- **Analysis** runs the external tool in the background against one of two
+  reference sources — a user-uploaded FASTA, or an NCBI BLAST search (which takes
+  the target taxIDs and reference amplicon from the assay) — storing the
+  consolidated JSON plus downloadable Excel/text/JSON reports. It's optional — the
+  run feature is disabled if the binary is absent, and BLAST additionally requires
+  `AM_NCBI_EMAIL`.
 - **No migrations yet:** delete the DB file to reset the schema.
 - **Configuration** comes from flags and `AM_*` environment variables. For
   convenience, a gitignored `.env` file in the working directory is also read at
   startup (real env vars take precedence). Copy `example.env` to `.env` and fill
-  in values — notably `AM_NCBI_EMAIL` for the (upcoming) BLAST reference source.
+  in values — notably `AM_NCBI_EMAIL` to enable the BLAST reference source.
 
 ## Build & run
 
