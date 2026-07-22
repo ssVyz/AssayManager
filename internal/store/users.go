@@ -8,11 +8,12 @@ import (
 // Profile holds the user-editable profile fields, including per-user BLAST
 // tuning applied to that user's BLAST runs.
 type Profile struct {
-	Name             string
-	Organisation     string
-	BlastMinCoverage float64
-	BlastMinIdentity float64
-	BlastHitlistSize int
+	Name              string
+	Organisation      string
+	BlastMinCoverage  float64
+	BlastMinIdentity  float64
+	BlastHitlistSize  int
+	DashboardRunCount int
 }
 
 // CreateUser inserts a new user with an empty profile and returns its id.
@@ -39,7 +40,7 @@ func (s *Store) UsernameTaken(username string) (bool, error) {
 }
 
 const userCols = `SELECT id, username, name, organisation, pw_hash, created_at,
-	blast_min_coverage, blast_min_identity, blast_hitlist_size FROM users`
+	blast_min_coverage, blast_min_identity, blast_hitlist_size, dashboard_run_count FROM users`
 
 func (s *Store) UserByUsername(username string) (User, error) {
 	row := s.db.QueryRow(userCols+` WHERE username = ? COLLATE NOCASE`, username)
@@ -56,9 +57,11 @@ func (s *Store) UpdateProfile(id int64, p Profile) error {
 	_, err := s.db.Exec(
 		`UPDATE users
 		    SET name = ?, organisation = ?,
-		        blast_min_coverage = ?, blast_min_identity = ?, blast_hitlist_size = ?
+		        blast_min_coverage = ?, blast_min_identity = ?, blast_hitlist_size = ?,
+		        dashboard_run_count = ?
 		  WHERE id = ?`,
-		p.Name, p.Organisation, p.BlastMinCoverage, p.BlastMinIdentity, p.BlastHitlistSize, id)
+		p.Name, p.Organisation, p.BlastMinCoverage, p.BlastMinIdentity, p.BlastHitlistSize,
+		p.DashboardRunCount, id)
 	return err
 }
 
@@ -66,7 +69,7 @@ func scanUser(row *sql.Row) (User, error) {
 	var u User
 	var ts string
 	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Organisation, &u.PwHash, &ts,
-		&u.BlastMinCoverage, &u.BlastMinIdentity, &u.BlastHitlistSize)
+		&u.BlastMinCoverage, &u.BlastMinIdentity, &u.BlastHitlistSize, &u.DashboardRunCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

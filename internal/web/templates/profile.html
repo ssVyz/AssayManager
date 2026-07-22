@@ -18,6 +18,11 @@
     <input type="number" name="blast_hitlist_size" min="1" step="1" value="{{.User.BlastHitlistSize}}" required>
   </label>
 
+  <h2>Dashboard</h2>
+  <label>Recent runs shown (1–50)
+    <input type="number" name="dashboard_run_count" min="1" max="50" step="1" value="{{.User.DashboardRunCount}}" required>
+  </label>
+
   <button type="submit">Save</button>
 </form>
 {{end}}

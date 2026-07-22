@@ -90,7 +90,7 @@ var flashes = map[string]struct{ Kind, Text string }{
 	"pw_empty":       {"err", "Password must not be empty."},
 	"user_taken":     {"err", "That username is already taken."},
 	"bad_register":   {"err", "Provide a username and matching, non-empty passwords."},
-	"bad_profile":    {"err", "Enter valid BLAST settings: coverage and identity in 0–1, hitlist a positive integer."},
+	"bad_profile":    {"err", "Check your settings: BLAST coverage and identity in 0–1, hitlist a positive integer, recent-runs a whole number 1–50."},
 	"not_found":      {"err", "That item was not found."},
 	"export_none":    {"err", "Select at least one assay to export."},
 	"import_nofile":  {"err", "Choose a file to import."},

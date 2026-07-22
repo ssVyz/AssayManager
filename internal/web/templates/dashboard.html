@@ -12,4 +12,33 @@
   <a class="btn" href="/assays/new">New assay</a>
   <a class="btn secondary" href="/run">Run check</a>
 </p>
+
+<h2>Recent runs</h2>
+{{if .Data.RecentRuns}}
+<div class="tablewrap">
+<table class="grid">
+  <thead><tr>
+    <th>Assay</th><th>Run</th><th>Date range</th><th>Sequences</th>
+    <th>0 mm</th><th>&le;1 mm</th><th>&gt;1 mm</th><th>No match</th>
+  </tr></thead>
+  <tbody>
+  {{range .Data.RecentRuns}}
+    <tr>
+      <td><a href="/results/{{.ID}}">{{.AssayName}} {{.AssayVersion}}</a></td>
+      <td>{{fmtTime .When}}</td>
+      <td>{{.DateRange}}</td>
+      <td>{{.Sequences}}</td>
+      <td class="mm-good" title="{{.Zero.Count}} sequences">{{printf "%.0f" .Zero.Pct}}%</td>
+      <td class="mm-warn" title="{{.One.Count}} sequences">{{printf "%.0f" .One.Pct}}%</td>
+      <td class="mm-bad" title="{{.Two.Count}} sequences">{{printf "%.0f" .Two.Pct}}%</td>
+      <td class="mm-none" title="{{.None.Count}} sequences">{{printf "%.0f" .None.Pct}}%</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+<p class="muted">Percentages of sequences by worst-category mismatch. Change how many runs show on your <a href="/profile">profile</a>.</p>
+{{else}}
+<p class="muted">No completed runs yet. <a href="/run">Run a check</a>.</p>
+{{end}}
 {{end}}

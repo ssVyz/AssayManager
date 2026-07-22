@@ -111,7 +111,8 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 
 	params := strings.TrimSpace(r.FormValue("params"))
 	req := analysis.Request{AssayJSON: []byte(assay.Content)}
-	var referenceName, cleanupPath string
+	newRun := store.NewRun{Params: params}
+	var cleanupPath string
 
 	switch r.FormValue("source") {
 	case "blast":
@@ -135,7 +136,10 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 			MinIdentity: user.BlastMinIdentity,
 			HitlistSize: user.BlastHitlistSize,
 		}
-		referenceName = blastDescriptor(taxids, from, to)
+		newRun.Source = "blast"
+		newRun.BlastFrom = from
+		newRun.BlastTo = to
+		newRun.ReferenceName = blastDescriptor(taxids, from, to)
 
 	default: // file upload
 		file, header, ferr := r.FormFile("reference")
@@ -155,13 +159,14 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 		}
 		req.ReferencePath = refPath
 		cleanupPath = refPath
-		referenceName = "reference.fasta"
+		newRun.Source = "file"
+		newRun.ReferenceName = "reference.fasta"
 		if header != nil && header.Filename != "" {
-			referenceName = header.Filename
+			newRun.ReferenceName = header.Filename
 		}
 	}
 
-	resultID, err := s.store.CreateRun(user.ID, assay, params, referenceName)
+	resultID, err := s.store.CreateRun(user.ID, assay, newRun)
 	if err != nil {
 		if cleanupPath != "" {
 			os.Remove(cleanupPath)
@@ -297,7 +302,12 @@ func (s *Server) handleRunBatch(w http.ResponseWriter, r *http.Request) {
 				HitlistSize: user.BlastHitlistSize,
 			},
 		}
-		resultID, err := s.store.CreateRun(user.ID, assay, "", blastDescriptor(taxids, from, to))
+		resultID, err := s.store.CreateRun(user.ID, assay, store.NewRun{
+			ReferenceName: blastDescriptor(taxids, from, to),
+			Source:        "blast",
+			BlastFrom:     from,
+			BlastTo:       to,
+		})
 		if err != nil {
 			s.serverError(w, "create run", err)
 			return

@@ -36,6 +36,9 @@ type User struct {
 	BlastMinCoverage float64
 	BlastMinIdentity float64
 	BlastHitlistSize int
+
+	// Number of recent runs shown on the dashboard.
+	DashboardRunCount int
 }
 
 type Assay struct {
@@ -54,6 +57,9 @@ type Result struct {
 	AssayName     string
 	AssayVersion  string
 	ReferenceName string
+	Source        string // "file" | "blast"
+	BlastFrom     string // BLAST publication-date range (YYYY/MM/DD), if any
+	BlastTo       string
 	Status        string
 	Params        string
 	Report        string
@@ -99,11 +105,12 @@ CREATE TABLE IF NOT EXISTS users (
   username           TEXT NOT NULL UNIQUE COLLATE NOCASE,
   name               TEXT NOT NULL DEFAULT '',
   organisation       TEXT NOT NULL DEFAULT '',
-  pw_hash            TEXT NOT NULL,
-  created_at         TEXT NOT NULL,
-  blast_min_coverage REAL NOT NULL DEFAULT 0.9,
-  blast_min_identity REAL NOT NULL DEFAULT 0.6,
-  blast_hitlist_size INTEGER NOT NULL DEFAULT 20000
+  pw_hash             TEXT NOT NULL,
+  created_at          TEXT NOT NULL,
+  blast_min_coverage  REAL NOT NULL DEFAULT 0.9,
+  blast_min_identity  REAL NOT NULL DEFAULT 0.6,
+  blast_hitlist_size  INTEGER NOT NULL DEFAULT 20000,
+  dashboard_run_count INTEGER NOT NULL DEFAULT 5
 );
 
 CREATE TABLE IF NOT EXISTS assays (
@@ -124,6 +131,9 @@ CREATE TABLE IF NOT EXISTS results (
   assay_name     TEXT NOT NULL,
   assay_version  TEXT NOT NULL,
   reference_name TEXT NOT NULL DEFAULT '',
+  source         TEXT NOT NULL DEFAULT '',
+  blast_from     TEXT NOT NULL DEFAULT '',
+  blast_to       TEXT NOT NULL DEFAULT '',
   status         TEXT NOT NULL,
   params         TEXT NOT NULL DEFAULT '',
   report         TEXT NOT NULL DEFAULT '',

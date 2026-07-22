@@ -9,6 +9,20 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.5] - 2026-07-21
+
+### Added
+- Dashboard "Recent runs" table: the most recent completed analysis runs (file
+  and BLAST) with assay name, run time, date range, sequence count, and the
+  overall mismatch breakdown — 0 / ≤1 / >1 mismatches plus no-match — as
+  percentages with subtle green/yellow/red/grey colour coding. The number of
+  runs shown is a per-user profile setting (`dashboard_run_count`, default 5,
+  1–50).
+- `results` rows now record the reference `source` ("file"/"blast") and the
+  BLAST publication-date range, so the dashboard can show a clean date-range
+  column. `store.CreateRun` now takes a `NewRun` struct; `store.RecentDoneResults`
+  added. (Schema change — delete the DB file to apply.)
+
 ## [0.2.4] - 2026-07-21
 
 ### Added
