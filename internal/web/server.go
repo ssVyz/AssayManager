@@ -69,6 +69,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /assays/preview", s.protected(s.handleAssayPreview))
 	mux.HandleFunc("POST /assays/add-oligo", s.protected(s.handleAssayAddOligo))
 	mux.HandleFunc("POST /assays", s.protected(s.handleAssaySave))
+	mux.HandleFunc("POST /assays/export", s.protected(s.handleAssayExport))
+	mux.HandleFunc("POST /assays/import", s.protectedUpload(s.handleAssayImport))
 	mux.HandleFunc("GET /assays/history", s.protected(s.handleAssayHistory))
 	mux.HandleFunc("POST /assays/delete", s.protected(s.handleAssayDelete))
 	mux.HandleFunc("GET /assays/{id}", s.protected(s.handleAssayView))

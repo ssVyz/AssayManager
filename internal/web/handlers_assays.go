@@ -100,6 +100,9 @@ func (s *Server) handleAssaysList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pd := s.page(r, "assays", "Assays")
+	if txt, kind := importSummaryFlash(r); txt != "" {
+		pd.Flash, pd.FlashKind = txt, kind
+	}
 	pd.Data = toAssayRows(lineages)
 	s.render(w, http.StatusOK, "assays_list", pd)
 }

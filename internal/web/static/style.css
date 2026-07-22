@@ -126,6 +126,7 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 /* Wide tables (e.g. the per-oligo pattern table) scroll horizontally. */
 .tablewrap { overflow-x: auto; }
 .small { font-size: .78rem; }
+.mt { margin-top: 1.5rem; }
 
 /* Code blocks */
 pre.code { background: #0f1e33; color: #e6edf7; padding: .9rem; border-radius: 8px; overflow-x: auto; font-size: .85rem; }

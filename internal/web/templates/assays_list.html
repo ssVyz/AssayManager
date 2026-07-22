@@ -4,24 +4,44 @@
   <a class="btn" href="/assays/new">New assay</a>
 </div>
 {{if .Data}}
-<table class="grid">
-  <thead><tr><th>Name</th><th>Latest version</th><th>Author</th><th>Updated</th><th></th></tr></thead>
-  <tbody>
-  {{range .Data}}
-    <tr>
-      <td><a href="/assays/{{.ID}}">{{.Name}}</a></td>
-      <td>{{.Version}}</td>
-      <td>{{.Author}}</td>
-      <td>{{fmtTime .CreatedAt}}</td>
-      <td class="rowactions">
-        <a href="/assays/{{.ID}}/edit">Edit</a>
-        <a href="/assays/history?name={{.Name}}">History</a>
-      </td>
-    </tr>
-  {{end}}
-  </tbody>
-</table>
+<form method="post" action="/assays/export">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <table class="grid">
+    <thead><tr><th></th><th>Name</th><th>Latest version</th><th>Author</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+    {{range .Data}}
+      <tr>
+        <td><input type="checkbox" name="id" value="{{.ID}}" aria-label="select {{.Name}}"></td>
+        <td><a href="/assays/{{.ID}}">{{.Name}}</a></td>
+        <td>{{.Version}}</td>
+        <td>{{.Author}}</td>
+        <td>{{fmtTime .CreatedAt}}</td>
+        <td class="rowactions">
+          <a href="/assays/{{.ID}}/edit">Edit</a>
+          <a href="/assays/history?name={{.Name}}">History</a>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  <div class="actions">
+    <button type="submit" name="format" value="json">Export selected (JSON)</button>
+    <button type="submit" name="format" value="yaml" class="secondary">Export selected (YAML)</button>
+  </div>
+  <p class="muted">Exports the latest version of each selected assay.</p>
+</form>
 {{else}}
 <p class="muted">No assays yet. <a href="/assays/new">Create one</a>.</p>
 {{end}}
+
+<section class="card narrow mt">
+  <h2>Import assays</h2>
+  <p class="muted">Import a previously exported JSON or YAML file. Assay versions already
+    present are skipped, so re-importing is safe.</p>
+  <form method="post" action="/assays/import" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <input type="file" name="file" accept=".json,.yaml,.yml" required>
+    <button type="submit">Import</button>
+  </form>
+</section>
 {{end}}

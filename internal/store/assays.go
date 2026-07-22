@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"sort"
 
 	"AssayManager/internal/assayparser"
@@ -50,6 +51,40 @@ func (s *Store) SaveNewVersion(ownerID int64, a assayparser.ValidAssay, bump str
 		Content:   string(content),
 		CreatedAt: parseTS(ts),
 	}, nil
+}
+
+// ImportAssay inserts an assay preserving the name and version from its JSON
+// header (versions are NOT re-assigned on import). If that exact (name, version)
+// already exists for the owner it is left untouched and imported=false is
+// returned, making imports idempotent. The header version must be a valid
+// vMAJOR.MINOR string.
+func (s *Store) ImportAssay(ownerID int64, a assayparser.ValidAssay) (imported bool, err error) {
+	name := a.Header.Name
+	version := a.Header.Version
+	if _, _, verr := parseVersion(version); verr != nil {
+		return false, fmt.Errorf("invalid version %q", version)
+	}
+
+	var n int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(1) FROM assays WHERE owner_id = ? AND name = ? AND version = ?`,
+		ownerID, name, version).Scan(&n); err != nil {
+		return false, err
+	}
+	if n > 0 {
+		return false, nil // already present — skip
+	}
+
+	content, err := assayparser.ConvertJson(a)
+	if err != nil {
+		return false, err
+	}
+	if _, err := s.db.Exec(
+		`INSERT INTO assays(owner_id, name, version, content, created_at) VALUES(?, ?, ?, ?, ?)`,
+		ownerID, name, version, string(content), nowTS()); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // latestVersion returns the highest version string for a lineage, or "" if the

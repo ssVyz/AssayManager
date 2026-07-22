@@ -92,6 +92,9 @@ var flashes = map[string]struct{ Kind, Text string }{
 	"bad_register":   {"err", "Provide a username and matching, non-empty passwords."},
 	"bad_profile":    {"err", "Enter valid BLAST settings: coverage and identity in 0–1, hitlist a positive integer."},
 	"not_found":      {"err", "That item was not found."},
+	"export_none":    {"err", "Select at least one assay to export."},
+	"import_nofile":  {"err", "Choose a file to import."},
+	"import_bad":     {"err", "Could not read that file as an assay export (expected JSON or YAML with an 'assays' list)."},
 }
 
 func flashFromQuery(r *http.Request) (text, kind string) {

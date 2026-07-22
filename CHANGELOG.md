@@ -9,6 +9,20 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.3] - 2026-07-21
+
+### Added
+- Bulk assay **export/import** on the Assays page (no client-side JS):
+  - Checkbox per assay + "Export selected (JSON/YAML)" buttons download one file
+    (envelope `{"format":1,"assays":[…]}`) containing the **latest version** of
+    each selected assay.
+  - An import form accepts such a JSON or YAML file and inserts its assays,
+    **preserving each assay's version** and **skipping any (name, version) already
+    present** (idempotent — safe to re-import). Oligos are re-derived from
+    `seqActual` and the header is validated on import. A summary flash reports
+    added / skipped / failed counts. Intended for backup/restore across a DB
+    reset. `store.ImportAssay` added.
+
 ## [0.2.2] - 2026-07-21
 
 ### Added
