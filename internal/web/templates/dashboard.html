@@ -28,10 +28,10 @@
       <td>{{fmtTime .When}}</td>
       <td>{{.DateRange}}</td>
       <td>{{.Sequences}}</td>
-      <td class="mm-good" title="{{.Zero.Count}} sequences">{{printf "%.0f" .Zero.Pct}}%</td>
-      <td class="mm-warn" title="{{.One.Count}} sequences">{{printf "%.0f" .One.Pct}}%</td>
-      <td class="mm-bad" title="{{.Two.Count}} sequences">{{printf "%.0f" .Two.Pct}}%</td>
-      <td class="mm-none" title="{{.None.Count}} sequences">{{printf "%.0f" .None.Pct}}%</td>
+      <td class="mm-good" title="{{.Zero.Count}} sequences">{{printf "%.1f" .Zero.Pct}}%</td>
+      <td class="mm-warn" title="{{.One.Count}} sequences">{{printf "%.1f" .One.Pct}}%</td>
+      <td class="mm-bad" title="{{.Two.Count}} sequences">{{printf "%.1f" .Two.Pct}}%</td>
+      <td class="mm-none" title="{{.None.Count}} sequences">{{printf "%.1f" .None.Pct}}%</td>
     </tr>
   {{end}}
   </tbody>

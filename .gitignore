@@ -121,6 +121,8 @@ target/
 *.db-journal
 *.dump
 *.sql.gz
+*.db-shm
+*.db-wal
 data/
 datasets/
 uploads/
