@@ -36,9 +36,8 @@
   {{if .Data.BlastAvailable}}
   <fieldset>
     <legend>NCBI BLAST source</legend>
-    <p class="muted">TaxIDs and query region come from the selected assay. Optionally restrict by publication date:</p>
-    <label>Published from <input type="date" name="blast_from"></label>
-    <label>Published to <input type="date" name="blast_to"></label>
+    <p class="muted">TaxIDs and query region come from the selected assay. Set the publication-date filter:</p>
+    {{template "blastDateFields" .}}
   </fieldset>
   {{end}}
 
@@ -52,7 +51,7 @@
 <section class="card mt">
   <h2>Batch BLAST</h2>
   <p class="muted">Run an NCBI BLAST check on several assays at once (the latest version of each).
-    The date range applies to all. Each check runs in the background — follow them under
+    The publication-date filter applies to all. Each check runs in the background — follow them under
     <a href="/results">Check results</a>.</p>
   <form method="post" action="/run/batch" class="stack">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
@@ -69,8 +68,10 @@
       {{end}}
       </tbody>
     </table>
-    <label>Published from <input type="date" name="blast_from"></label>
-    <label>Published to <input type="date" name="blast_to"></label>
+    <fieldset>
+      <legend>Publication date filter</legend>
+      {{template "blastDateFields" .}}
+    </fieldset>
     <button type="submit">Run BLAST on selected</button>
   </form>
 </section>
@@ -78,4 +79,22 @@
 {{else}}
 <p class="muted">You need an assay first. <a href="/assays/new">Create one</a>.</p>
 {{end}}
+{{end}}
+
+{{define "blastDateFields"}}
+  <label>Filter mode
+    <select name="date_mode">
+      <option value="lookback">Last N months (relative to today)</option>
+      <option value="custom">Custom date range</option>
+    </select>
+  </label>
+  <label>Look-back months <span class="muted">(for "Last N months")</span>
+    <input type="number" name="lookback_months" min="1" max="240" step="1" value="12">
+  </label>
+  <label>From <span class="muted">(for "Custom date range")</span>
+    <input type="date" name="blast_from">
+  </label>
+  <label>To
+    <input type="date" name="blast_to">
+  </label>
 {{end}}

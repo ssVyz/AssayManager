@@ -9,6 +9,17 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.6] - 2026-07-21
+
+### Changed
+- BLAST publication-date selection now defaults to a **look-back period in months**
+  (default 12, capped at 240), resolved to concrete `from`/`to` dates against the
+  current date at submit time (bounded to today); a **custom date range** is the
+  non-default alternative. Applies to both the single-run and batch-BLAST forms.
+  Both resolved dates are sent to the tool and stored on the run, so downstream
+  display is unchanged. This look-back is the primitive the upcoming analysis
+  scheduling will persist and re-resolve per execution.
+
 ## [0.2.5] - 2026-07-21
 
 ### Added
