@@ -9,6 +9,23 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.8] - 2026-07-21
+
+### Added
+- Analysis scheduling (recurring BLAST checks). New `scheduled_jobs` table
+  (owner, anchor assay, method, look-back months, interval days, next execution)
+  and a `schedule_id` column on `results` (nullable, `ON DELETE SET NULL` so
+  history survives schedule deletion). The Scheduled-checks page lists a user's
+  schedules and creates new ones (BLAST-eligible assays only). A background
+  scheduler goroutine (ticks each minute, started at boot, stops on shutdown)
+  fires jobs whose next execution has passed: it advances the next execution to
+  *now + interval* first (missed cycles are skipped, not replayed), then — if the
+  job can run — starts a normal background run of the **latest version** of the
+  anchor assay's lineage, with the look-back resolved against the run date.
+  Jobs that can't run (assay gone/ineligible, BLAST unavailable) are silently
+  skipped after advancing. Runs go through the same queue/cap as manual runs.
+  (Schema change — delete the DB file to apply.)
+
 ## [0.2.7] - 2026-07-21
 
 ### Changed

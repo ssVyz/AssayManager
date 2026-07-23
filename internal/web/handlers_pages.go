@@ -157,7 +157,3 @@ func (s *Server) handleProfileSave(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/profile?msg=profile_saved", http.StatusSeeOther)
 }
-
-func (s *Server) handleScheduled(w http.ResponseWriter, r *http.Request) {
-	s.render(w, http.StatusOK, "scheduled", s.page(r, "scheduled", "Scheduled checks"))
-}

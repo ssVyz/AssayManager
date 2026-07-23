@@ -22,34 +22,41 @@ import (
 const (
 	blastLookbackDefault = 12
 	blastLookbackMax     = 240
+	blastDateLayout      = "2006/01/02"
 )
 
+func clampLookback(months int) int {
+	if months < 1 {
+		return 1
+	}
+	if months > blastLookbackMax {
+		return blastLookbackMax
+	}
+	return months
+}
+
+// lookbackRange resolves a look-back period (months) against a reference time
+// into concrete from/to dates, bounded to that time. AddDate normalises
+// month-end (e.g. Mar 31 − 1mo → Mar 3); a few days' drift at month boundaries
+// is immaterial for a publication-date window. Shared by the run form and the
+// scheduler.
+func lookbackRange(now time.Time, months int) (from, to string) {
+	return now.AddDate(0, -clampLookback(months), 0).Format(blastDateLayout), now.Format(blastDateLayout)
+}
+
 // resolveBlastDates turns the run-form date-filter inputs into concrete
-// YYYY/MM/DD from/to strings. The default mode is a look-back period in months
-// (resolved against today, bounded to today); "custom" uses the entered range.
-// Both dates are sent to and stored with the run, so what was queried is exactly
-// documented.
+// YYYY/MM/DD from/to strings. The default mode is a look-back period in months;
+// "custom" uses the entered range. Both dates are sent to and stored with the
+// run, so what was queried is exactly documented.
 func resolveBlastDates(r *http.Request) (from, to string) {
 	if r.FormValue("date_mode") == "custom" {
 		return slashDate(r.FormValue("blast_from")), slashDate(r.FormValue("blast_to"))
 	}
-
 	months := blastLookbackDefault
 	if v, err := strconv.Atoi(strings.TrimSpace(r.FormValue("lookback_months"))); err == nil {
 		months = v
 	}
-	if months < 1 {
-		months = 1
-	}
-	if months > blastLookbackMax {
-		months = blastLookbackMax
-	}
-
-	const layout = "2006/01/02"
-	now := time.Now()
-	// AddDate normalises month-end (e.g. Mar 31 − 1mo → Mar 3); a few days' drift
-	// at month boundaries is immaterial for a publication-date window.
-	return now.AddDate(0, -months, 0).Format(layout), now.Format(layout)
+	return lookbackRange(time.Now(), months)
 }
 
 type runFormData struct {

@@ -80,6 +80,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /run", s.protectedUpload(s.handleRunStart))
 	mux.HandleFunc("POST /run/batch", s.protected(s.handleRunBatch))
 	mux.HandleFunc("GET /scheduled", s.protected(s.handleScheduled))
+	mux.HandleFunc("POST /scheduled", s.protected(s.handleScheduleCreate))
+	mux.HandleFunc("POST /scheduled/delete", s.protected(s.handleScheduleDelete))
 	mux.HandleFunc("GET /results", s.protected(s.handleResultsList))
 	mux.HandleFunc("GET /results/{id}", s.protected(s.handleResultView))
 	mux.HandleFunc("GET /results/{id}/download/{kind}", s.protected(s.handleResultDownload))

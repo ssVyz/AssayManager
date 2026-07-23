@@ -155,6 +155,19 @@ func (s *Store) ListAllAssays(ownerID int64) ([]Assay, error) {
 	return all, nil
 }
 
+// LatestAssayByName returns the newest version of a lineage (owner + name), or
+// ErrNotFound if the lineage has no versions.
+func (s *Store) LatestAssayByName(ownerID int64, name string) (Assay, error) {
+	versions, err := s.ListVersions(ownerID, name)
+	if err != nil {
+		return Assay{}, err
+	}
+	if len(versions) == 0 {
+		return Assay{}, ErrNotFound
+	}
+	return versions[0], nil // ListVersions is newest-first
+}
+
 // AssayByID returns a specific assay version, scoped to the owner.
 func (s *Store) AssayByID(ownerID, id int64) (Assay, error) {
 	row := s.db.QueryRow(

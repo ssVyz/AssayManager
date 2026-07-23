@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.2.7"
+const Version = "0.2.8"
 
 func main() {
 	// Load .env first so it can supply any AM_* setting (real env vars win).
@@ -88,6 +88,9 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	logger.Info("server session started",
 		"version", Version, "addr", cfg.Addr, "db", cfg.DBPath, "log", cfg.LogPath, "pid", os.Getpid())
+
+	// Recurring-job scheduler runs until the context is cancelled (shutdown).
+	srv.StartScheduler(ctx)
 
 	serveErr := make(chan error, 1)
 	go func() {

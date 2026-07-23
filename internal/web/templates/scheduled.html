@@ -1,7 +1,59 @@
 {{define "content"}}
 <h1>Scheduled checks</h1>
+{{if .Data.Error}}<div class="flash err">{{.Data.Error}}</div>{{end}}
+
+<h2>Schedules</h2>
+{{if .Data.Schedules}}
+<table class="grid">
+  <thead><tr><th>Assay</th><th>Method</th><th>Look-back</th><th>Interval</th><th>Next run</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Schedules}}
+    <tr>
+      <td>{{.AssayName}}</td>
+      <td>{{.Method}}</td>
+      <td>{{.LookbackMonths}} mo</td>
+      <td>{{.IntervalDays}} d</td>
+      <td>{{fmtTime .NextExecution}}</td>
+      <td>
+        <form method="post" action="/scheduled/delete" class="inline">
+          <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+          <input type="hidden" name="id" value="{{.ID}}">
+          <button type="submit" class="btn danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+{{else}}
+<p class="muted">No schedules yet.</p>
+{{end}}
+
+<h2 class="mt">New schedule</h2>
+{{if not .Data.BlastAvailable}}
 <div class="card">
-  <p>Scheduled and recurring checks are planned, but not part of this MVP.</p>
-  <p class="muted">For now, start runs manually from <a href="/run">Run check</a>.</p>
+  <p class="muted">Scheduling requires BLAST, which needs an NCBI email configured
+    (<code>AM_NCBI_EMAIL</code>).</p>
 </div>
+{{else if .Data.EligibleAssays}}
+<form method="post" action="/scheduled" class="stack card narrow">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <label>Assay
+    <select name="assay_id" required>
+      {{range .Data.EligibleAssays}}<option value="{{.ID}}">{{.Name}} {{.Version}}</option>{{end}}
+    </select>
+  </label>
+  <label>Method
+    <select name="method"><option value="blast">NCBI BLAST</option></select>
+  </label>
+  <label>Look-back (months) <input type="number" name="lookback_months" min="1" max="240" step="1" value="12" required></label>
+  <label>Interval (days) <input type="number" name="interval_days" min="1" max="3650" step="1" value="30" required></label>
+  <label>Next execution <input type="date" name="next_execution" required></label>
+  <button type="submit">Create schedule</button>
+</form>
+<p class="muted">Each run uses the latest version of the assay; the look-back is resolved against
+  the run date, and the next execution is set to that run time plus the interval.</p>
+{{else}}
+<p class="muted">No BLAST-eligible assays. An assay needs a reference amplicon and target taxIDs.</p>
+{{end}}
 {{end}}

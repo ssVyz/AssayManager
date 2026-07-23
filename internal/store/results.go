@@ -6,23 +6,29 @@ import (
 )
 
 // NewRun describes an analysis run being started (the reference source and any
-// per-run notes/date range).
+// per-run notes/date range). ScheduleID links the run to a recurring job (0 for
+// a manual run).
 type NewRun struct {
 	Params        string
 	ReferenceName string
 	Source        string // "file" | "blast"
 	BlastFrom     string // YYYY/MM/DD, blast only, optional
 	BlastTo       string
+	ScheduleID    int64 // 0 = manual run
 }
 
 // CreateRun records the start of an analysis run against a specific assay
 // version and returns the new result id. The run begins in the "running" state;
 // the caller fills in the outcome later via CompleteRun or FailRun.
 func (s *Store) CreateRun(ownerID int64, assay Assay, r NewRun) (int64, error) {
+	var scheduleID any // NULL when 0
+	if r.ScheduleID != 0 {
+		scheduleID = r.ScheduleID
+	}
 	res, err := s.db.Exec(
-		`INSERT INTO results(owner_id, assay_id, assay_name, assay_version, reference_name, source, blast_from, blast_to, status, params, started_at)
-		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ownerID, assay.ID, assay.Name, assay.Version, r.ReferenceName, r.Source, r.BlastFrom, r.BlastTo, StatusRunning, r.Params, nowTS())
+		`INSERT INTO results(owner_id, assay_id, assay_name, assay_version, reference_name, source, blast_from, blast_to, status, params, schedule_id, started_at)
+		 VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ownerID, assay.ID, assay.Name, assay.Version, r.ReferenceName, r.Source, r.BlastFrom, r.BlastTo, StatusRunning, r.Params, scheduleID, nowTS())
 	if err != nil {
 		return 0, err
 	}

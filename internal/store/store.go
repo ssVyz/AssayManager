@@ -71,6 +71,20 @@ type Result struct {
 	FinishedAt    *time.Time
 }
 
+// Schedule is a recurring analysis job. AssayName is joined for display and is
+// not a stored column.
+type Schedule struct {
+	ID             int64
+	OwnerID        int64
+	AssayID        int64
+	AssayName      string
+	Method         string
+	LookbackMonths int
+	IntervalDays   int
+	NextExecution  time.Time
+	CreatedAt      time.Time
+}
+
 type Store struct{ db *sql.DB }
 
 // Open opens (creating if needed) the SQLite database at path and ensures the
@@ -124,6 +138,18 @@ CREATE TABLE IF NOT EXISTS assays (
 );
 CREATE INDEX IF NOT EXISTS idx_assays_owner_name ON assays(owner_id, name);
 
+CREATE TABLE IF NOT EXISTS scheduled_jobs (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  assay_id        INTEGER NOT NULL REFERENCES assays(id) ON DELETE CASCADE,
+  method          TEXT NOT NULL DEFAULT 'blast',
+  lookback_months INTEGER NOT NULL,
+  interval_days   INTEGER NOT NULL,
+  next_execution  TEXT NOT NULL,
+  created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sched_next ON scheduled_jobs(next_execution);
+
 CREATE TABLE IF NOT EXISTS results (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   owner_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -141,6 +167,7 @@ CREATE TABLE IF NOT EXISTS results (
   tool_name      TEXT NOT NULL DEFAULT '',
   tool_version   TEXT NOT NULL DEFAULT '',
   schema_version INTEGER NOT NULL DEFAULT 0,
+  schedule_id    INTEGER REFERENCES scheduled_jobs(id) ON DELETE SET NULL,
   started_at     TEXT NOT NULL,
   finished_at    TEXT
 );
