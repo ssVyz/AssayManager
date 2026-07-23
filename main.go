@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.2.6"
+const Version = "0.2.7"
 
 func main() {
 	// Load .env first so it can supply any AM_* setting (real env vars win).

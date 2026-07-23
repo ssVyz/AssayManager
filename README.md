@@ -29,7 +29,9 @@ kept thin so it can later back a JSON API.
   consolidated JSON plus downloadable Excel/text/JSON reports. Checks can be run
   one at a time or, for BLAST, on several assays at once; the dashboard summarises
   recent runs. It's optional — the run feature is disabled if the binary is
-  absent, and BLAST additionally requires `AM_NCBI_EMAIL`.
+  absent, and BLAST additionally requires `AM_NCBI_EMAIL`. Concurrent runs are
+  capped by `AM_MAX_CONCURRENT_RUNS` (default 1); since a run holds its slot for
+  its whole duration, this also bounds how many BLAST/NCBI queries run at once.
 - **No migrations yet:** delete the DB file to reset the schema.
 - **Configuration** comes from flags and `AM_*` environment variables. For
   convenience, a gitignored `.env` file in the working directory is also read at

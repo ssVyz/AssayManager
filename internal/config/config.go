@@ -36,7 +36,7 @@ func Load() Config {
 		MaxUploadBytes:          1 << 20,                               // 1 MiB
 		MaxReferenceUploadBytes: envBytes("AM_MAX_REF_UPLOAD", 50<<20), // 50 MiB
 		AnalysisTimeout:         envDuration("AM_ANALYSIS_TIMEOUT", 30*time.Minute),
-		MaxConcurrentRuns:       envInt("AM_MAX_CONCURRENT_RUNS", 2),
+		MaxConcurrentRuns:       envInt("AM_MAX_CONCURRENT_RUNS", 1),
 
 		NCBIEmail:  envOr("AM_NCBI_EMAIL", ""),
 		NCBITool:   envOr("AM_NCBI_TOOL", "AssayManager"),

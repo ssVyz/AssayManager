@@ -9,6 +9,16 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.7] - 2026-07-21
+
+### Changed
+- `AM_MAX_CONCURRENT_RUNS` now **defaults to 1** (was 2), so out of the box only
+  one analysis run executes at a time — which, since a run holds its slot for its
+  whole duration, keeps BLAST to a single concurrent NCBI query (polite to public
+  NCBI). Documented in `example.env` and the README. Raise it (e.g. with your own
+  BLAST DB) to allow more concurrent runs. The single cap governs file and BLAST
+  runs alike — kept deliberately simple.
+
 ## [0.2.6] - 2026-07-21
 
 ### Changed
