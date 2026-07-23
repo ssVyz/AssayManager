@@ -10,7 +10,7 @@ kept thin so it can later back a JSON API.
 |------|----------------|
 | `main.go` | Entry point: wires config → store → server, sets up logging, holds the authoritative `Version`. |
 | `internal/config` | Configuration from flags, `AM_*` env vars, and an optional `.env` file. |
-| `internal/store` | SQLite data layer behind a repository API — users, assays, results, and result artifacts. Portable SQL (a Postgres move is anticipated). |
+| `internal/store` | SQLite data layer behind a repository API — users, assays, results, result artifacts, and scheduled jobs. Portable SQL (a Postgres move is anticipated). |
 | `internal/auth` | bcrypt password hashing, in-memory sessions, CSRF tokens. |
 | `internal/assayparser` | Parses/validates assay definitions, converts JSON⇄YAML, and derives clean sequences + modification lists from oligo sequences. |
 | `internal/analysis` | Runs the external `inclusivity_check_blast` tool as a subprocess and parses/serves its output. |
@@ -28,10 +28,13 @@ kept thin so it can later back a JSON API.
   the target taxIDs and reference amplicon from the assay) — storing the
   consolidated JSON plus downloadable Excel/text/JSON reports. Checks can be run
   one at a time or, for BLAST, on several assays at once; the dashboard summarises
-  recent runs. It's optional — the run feature is disabled if the binary is
-  absent, and BLAST additionally requires `AM_NCBI_EMAIL`. Concurrent runs are
-  capped by `AM_MAX_CONCURRENT_RUNS` (default 1); since a run holds its slot for
-  its whole duration, this also bounds how many BLAST/NCBI queries run at once.
+  recent runs. BLAST checks can also be **scheduled** to recur — a background
+  scheduler runs due jobs on the latest version of the assay, resolving the
+  look-back window against each run's date. It's optional — the run feature is
+  disabled if the binary is absent, and BLAST additionally requires
+  `AM_NCBI_EMAIL`. Concurrent runs are capped by `AM_MAX_CONCURRENT_RUNS`
+  (default 1); since a run holds its slot for its whole duration, this also bounds
+  how many BLAST/NCBI queries run at once.
 - **No migrations yet:** delete the DB file to reset the schema.
 - **Configuration** comes from flags and `AM_*` environment variables. For
   convenience, a gitignored `.env` file in the working directory is also read at
