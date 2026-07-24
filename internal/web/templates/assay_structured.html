@@ -32,6 +32,26 @@
       markers (e.g. <code>/56-FAM/ATGC/3BHQ_1/</code>); the clean sequence and modifications are
       derived automatically (click <b>Update preview</b> to see them). Analysis needs at least one
       forward and one reverse primer.</p>
+    <details class="modref">
+      <summary>Show available modifications</summary>
+      <p class="muted small">Only these codes are recognised. Write them inline as <code>/code/</code>
+        inside a sequence. Base-acting modifications add their base to the clean sequence; labels
+        (fluorophores, quenchers, spacers) do not.</p>
+      <div class="tablewrap">
+      <table class="grid">
+        <thead><tr><th>Code</th><th>Acts as base</th><th>Description</th></tr></thead>
+        <tbody>
+        {{range modList}}
+          <tr>
+            <td><code>{{.Code}}</code></td>
+            <td>{{if .ActsAs}}{{.ActsAs}}{{else}}<span class="muted">— (label only)</span>{{end}}</td>
+            <td>{{.Details}}</td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      </div>
+    </details>
     <div class="tablewrap">
     <table class="grid">
       <thead><tr><th>Name</th><th>Function</th><th>Sequence</th><th>Derived</th><th></th></tr></thead>

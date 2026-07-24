@@ -9,6 +9,15 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.0] - 2026-07-24
+
+### Added
+- Modification reference in the structured editor: an inline, JS-free
+  "Show available modifications" panel (`<details>`) next to the oligo table,
+  listing every recognised modification code, the base it stands in for (if
+  any), and a description. The list is generated from
+  `assayparser.ModCatalogue`, so it always matches what the parser accepts.
+
 ## [0.2.9] - 2026-07-24
 
 ### Added

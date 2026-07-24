@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -39,6 +40,30 @@ type structuredForm struct {
 	RefAmpliconSeq string
 	Base           string // hidden full-assay JSON (preserves unexposed fields)
 	Error          string
+}
+
+// modCatEntry is one display row of the modification reference shown in the
+// structured editor. ActsAs holds the base a modification stands in for, or ""
+// for a label (fluorophore/quencher/spacer) that contributes no base.
+type modCatEntry struct {
+	Code    string
+	ActsAs  string
+	Details string
+}
+
+// modList returns assayparser.ModCatalogue as a code-sorted slice for display.
+// It is exposed to templates so the reference stays in sync with the parser.
+func modList() []modCatEntry {
+	out := make([]modCatEntry, 0, len(assayparser.ModCatalogue))
+	for _, m := range assayparser.ModCatalogue {
+		actsAs := m.ActsAsBase
+		if actsAs == assayparser.NonBase {
+			actsAs = ""
+		}
+		out = append(out, modCatEntry{Code: m.Content, ActsAs: actsAs, Details: m.Details})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Code < out[j].Code })
+	return out
 }
 
 func fieldAt(ss []string, i int) string {

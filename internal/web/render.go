@@ -22,7 +22,7 @@ var pages = []string{
 }
 
 func parseTemplates() (map[string]*template.Template, error) {
-	funcs := template.FuncMap{"fmtTime": fmtTime}
+	funcs := template.FuncMap{"fmtTime": fmtTime, "modList": modList}
 	m := make(map[string]*template.Template, len(pages))
 	for _, p := range pages {
 		t, err := template.New("layout.html").Funcs(funcs).
