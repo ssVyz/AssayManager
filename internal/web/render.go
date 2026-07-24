@@ -17,7 +17,7 @@ var staticFS embed.FS
 // pages are the content templates; each is parsed together with the layout.
 var pages = []string{
 	"login", "register", "dashboard", "profile",
-	"assays_list", "assay_form", "assay_view", "assay_history",
+	"assays_list", "assay_form", "assay_structured", "assay_view", "assay_history",
 	"run", "scheduled", "results_list", "result_view",
 }
 

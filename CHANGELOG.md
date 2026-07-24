@@ -9,6 +9,22 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.2.9] - 2026-07-24
+
+### Added
+- Structured ("convenient") assay editor, now the default for New assay and Edit
+  assay — a single field-based page (no YAML), with a Header section, an editable
+  oligo table (per-row name/function/sequence with a live-derived clean
+  sequence + mods, add-N-rows and per-row remove via server round-trips, no JS),
+  and a Targets section exposing only the BLAST essentials (target taxIDs as a
+  comma-separated field, reference amplicon). Fields the form doesn't expose
+  (off-target taxIDs, amplicon source/size, search string) are preserved across
+  edits via a hidden base. Inline help throughout.
+- The YAML editor is retained as the "advanced" alternative; both editors switch
+  to each other (`/assays/form/to-yaml`, `/assays/yaml/to-form`) preserving the
+  in-progress assay. Both build the same `ValidAssay` and use the same
+  save/version path.
+
 ## [0.2.8] - 2026-07-21
 
 ### Added

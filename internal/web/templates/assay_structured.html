@@ -1,0 +1,86 @@
+{{define "content"}}
+{{$f := .Data}}
+<div class="pagehead">
+  <h1>{{if $f.IsNew}}New assay{{else}}Edit assay / new version{{end}}</h1>
+  <a class="btn secondary" href="/assays">Back to assays</a>
+</div>
+{{if $f.Error}}<div class="flash err">{{$f.Error}}</div>{{end}}
+<p class="muted">Fill in the fields below. Saving under the same <b>name</b> creates a new version of
+  that assay; a new name starts a new one.</p>
+
+<form method="post" action="/assays/form/edit" class="stack">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="is_new" value="{{if $f.IsNew}}1{{else}}0{{end}}">
+  <input type="hidden" name="base" value="{{$f.Base}}">
+
+  <fieldset>
+    <legend>Header</legend>
+    <label>Name <span class="muted small">(required — identifies the assay)</span>
+      <input type="text" name="name" value="{{$f.Name}}" required>
+    </label>
+    <label>Author <span class="muted small">(required)</span>
+      <input type="text" name="author" value="{{$f.Author}}" required>
+    </label>
+    <label>Description <span class="muted small">(optional notes)</span>
+      <input type="text" name="description" value="{{$f.Description}}">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Oligos</legend>
+    <p class="muted">One row per oligo. Enter the sequence with inline <code>/modification/</code>
+      markers (e.g. <code>/56-FAM/ATGC/3BHQ_1/</code>); the clean sequence and modifications are
+      derived automatically (click <b>Update preview</b> to see them). Analysis needs at least one
+      forward and one reverse primer.</p>
+    <div class="tablewrap">
+    <table class="grid">
+      <thead><tr><th>Name</th><th>Function</th><th>Sequence</th><th>Derived</th><th></th></tr></thead>
+      <tbody>
+      {{range $i, $o := $f.Oligos}}
+        <tr>
+          <td><input type="text" name="oligo_name" value="{{$o.Name}}"></td>
+          <td>
+            <select name="oligo_function">
+              <option value="forward-primer"{{if eq $o.Function "forward-primer"}} selected{{end}}>forward-primer</option>
+              <option value="reverse-primer"{{if eq $o.Function "reverse-primer"}} selected{{end}}>reverse-primer</option>
+              <option value="probe"{{if eq $o.Function "probe"}} selected{{end}}>probe</option>
+              <option value=""{{if eq $o.Function ""}} selected{{end}}>(none)</option>
+            </select>
+          </td>
+          <td><input type="text" name="oligo_seq" value="{{$o.Seq}}" class="mono"></td>
+          <td class="small">
+            {{if $o.Err}}<span class="mm-bad">{{$o.Err}}</span>
+            {{else if $o.CleanSeq}}<span class="mono">{{$o.CleanSeq}}</span>{{range $o.Mods}} <span class="tag">{{.Content}}@{{.Pos}}</span>{{end}}
+            {{else}}<span class="muted">—</span>{{end}}
+          </td>
+          <td><button type="submit" name="remove" value="{{$i}}" class="btn danger">Remove</button></td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    <div class="actions">
+      <label class="small">Add <input type="number" name="add_count" value="1" min="1" max="20"> row(s)</label>
+      <button type="submit" name="action" value="add" class="secondary">Add rows</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Targets</legend>
+    <p class="muted">Needed for NCBI BLAST checks; optional otherwise.</p>
+    <label>Target taxIDs <span class="muted small">(comma-separated NCBI taxIDs, e.g. 562, 11320)</span>
+      <input type="text" name="tgt_taxids" value="{{$f.TgtTaxids}}">
+    </label>
+    <label>Reference amplicon <span class="muted small">(the target region sequence; used as the BLAST query)</span>
+      <input type="text" name="ref_amplicon_seq" value="{{$f.RefAmpliconSeq}}" class="mono">
+    </label>
+  </fieldset>
+
+  <div class="actions">
+    <button type="submit" name="action" value="preview">Update preview</button>
+    <button type="submit" formaction="/assays/form/save" name="bump" value="minor">Save (minor)</button>
+    <button type="submit" formaction="/assays/form/save" name="bump" value="major" class="secondary">Save (major)</button>
+    <button type="submit" formaction="/assays/form/to-yaml" class="secondary">Switch to YAML editor</button>
+  </div>
+</form>
+{{end}}

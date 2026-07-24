@@ -107,41 +107,6 @@ func (s *Server) handleAssaysList(w http.ResponseWriter, r *http.Request) {
 	s.render(w, http.StatusOK, "assays_list", pd)
 }
 
-func (s *Server) handleAssayNew(w http.ResponseWriter, r *http.Request) {
-	pd := s.page(r, "assays", "New assay")
-	pd.Data = assayFormData{YAMLInput: skeletonYAML, IsNew: true}
-	s.render(w, http.StatusOK, "assay_form", pd)
-}
-
-func (s *Server) handleAssayEdit(w http.ResponseWriter, r *http.Request) {
-	user := userFrom(r.Context())
-	id, ok := pathID(r)
-	if !ok {
-		http.Redirect(w, r, "/assays?msg=not_found", http.StatusSeeOther)
-		return
-	}
-	assay, err := s.store.AssayByID(user.ID, id)
-	if errors.Is(err, store.ErrNotFound) {
-		http.Redirect(w, r, "/assays?msg=not_found", http.StatusSeeOther)
-		return
-	}
-	if err != nil {
-		s.serverError(w, "load assay", err)
-		return
-	}
-
-	var parsed assayparser.ValidAssay
-	if err := json.Unmarshal([]byte(assay.Content), &parsed); err != nil {
-		s.serverError(w, "decode assay", err)
-		return
-	}
-	y, _ := assayparser.ConvertYaml(parsed)
-
-	pd := s.page(r, "assays", "Edit assay")
-	pd.Data = assayFormData{YAMLInput: string(y), IsNew: false}
-	s.render(w, http.StatusOK, "assay_form", pd)
-}
-
 func (s *Server) handleAssayPreview(w http.ResponseWriter, r *http.Request) {
 	input := r.FormValue("yaml")
 	form := assayFormData{
