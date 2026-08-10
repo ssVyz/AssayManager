@@ -58,7 +58,6 @@ func TestBuildArgsBlastMode(t *testing.T) {
 
 	checks := map[string]string{
 		"--ref-source":         "blast",
-		"--blast-query":        "ACGTACGTACGT",
 		"--blast-taxid":        "1128,562",
 		"--blast-from":         "2020/01/01",
 		"--blast-to":           "2024/12/31",
@@ -72,6 +71,11 @@ func TestBuildArgsBlastMode(t *testing.T) {
 		if got := argValue(args, flag); got != want {
 			t.Errorf("%s = %q, want %q", flag, got, want)
 		}
+	}
+	// The query is passed as a file path (written by Run), not inline, so a long
+	// sequence can't be misread as an over-long filename (OS-specific separator).
+	if q := argValue(args, "--blast-query"); !strings.HasSuffix(q, "query.fasta") {
+		t.Errorf("--blast-query = %q, want a path ending in query.fasta", q)
 	}
 	// BLAST mode must not attach a reference-file positional.
 	if strings.Contains(strings.Join(args, " "), "ref.fasta") {

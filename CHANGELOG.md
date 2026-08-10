@@ -9,6 +9,18 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.1] - 2026-08-10
+
+### Fixed
+- BLAST runs now write the query sequence (`targets.refAmpliconSeq`) to a
+  single-record FASTA file in the per-run temp dir and pass its path to
+  `--blast-query`, instead of passing the sequence inline. The tool's
+  file-or-inline heuristic only falls back to "inline" on a file-not-found
+  error, so an inline query longer than the OS filename limit (~255 bytes) was
+  misread as a too-long path and the run failed with "file name too long". Any
+  assay with a reference amplicon ≥ 256 nt was affected; passing a file works
+  for any query length. Applies to single, batch, and scheduled BLAST runs.
+
 ## [0.3.0] - 2026-07-24
 
 ### Added

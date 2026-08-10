@@ -27,6 +27,14 @@ import (
 // understands. Assert on schema_version, never on the tool's version.
 const SupportedSchemaVersion = 1
 
+// blastQueryFile is the per-run file we write the BLAST query sequence to. The
+// tool's --blast-query accepts a file path or an inline sequence, but its
+// inline-fallback only triggers on a "file not found" error, so an inline
+// sequence longer than the OS filename limit (~255 bytes) is misread as a
+// too-long path and hard-fails. Passing a file avoids that entirely and works
+// for any query length. Run writes it; buildArgs references it — keep in sync.
+const blastQueryFile = "query.fasta"
+
 // Request is the analyzer input: the assay as AssayManager-format JSON plus a
 // reference source. Exactly one source is used: a local FASTA file
 // (ReferencePath, file mode) or a BLAST search (Blast, BLAST mode).
@@ -480,6 +488,15 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 		return Report{}, fmt.Errorf("write assay: %w", err)
 	}
 
+	// BLAST mode: write the query sequence to a single-record FASTA file rather
+	// than passing it inline (see blastQueryFile).
+	if req.Blast != nil {
+		fasta := ">query\n" + req.Blast.Query + "\n"
+		if err := os.WriteFile(filepath.Join(dir, blastQueryFile), []byte(fasta), 0o600); err != nil {
+			return Report{}, fmt.Errorf("write blast query: %w", err)
+		}
+	}
+
 	runCtx := ctx
 	if c.timeout > 0 {
 		var cancel context.CancelFunc
@@ -537,8 +554,9 @@ func (c *CLI) Run(ctx context.Context, req Request) (Report, error) {
 // buildArgs assembles the CLI arguments for a run. Common output flags are
 // shared; the reference source differs: file mode appends the reference path as
 // the trailing positional, BLAST mode adds the --ref-source blast flags (and no
-// reference positional). Kept separate from Run so it can be unit-tested without
-// invoking the binary or touching the network.
+// reference positional). The BLAST query is passed as the path to the FASTA file
+// Run writes (blastQueryFile), not inline. Kept separate from Run so it can be
+// unit-tested without invoking the binary or touching the network.
 func (c *CLI) buildArgs(dir string, req Request) []string {
 	assayPath := filepath.Join(dir, "assay.json")
 	args := []string{
@@ -548,7 +566,7 @@ func (c *CLI) buildArgs(dir string, req Request) []string {
 	if req.Blast != nil {
 		b := req.Blast
 		args = append(args, "--ref-source", "blast",
-			"--blast-query", b.Query,
+			"--blast-query", filepath.Join(dir, blastQueryFile),
 			"--blast-taxid", joinInts(b.TaxIDs))
 		if b.From != "" {
 			args = append(args, "--blast-from", b.From)
