@@ -39,6 +39,18 @@ type User struct {
 
 	// Number of recent runs shown on the dashboard.
 	DashboardRunCount int
+
+	// Dashboard mismatch-colour thresholds (percentages, 0–100). Each mismatch
+	// cell on the dashboard is coloured green/yellow/red by which zone its
+	// percentage lands in. For 0-mm and ≤1-mm a higher percentage is better
+	// (green is the high end); for >1-mm a higher percentage is worse (green is
+	// the low end). "No match" is not coloured.
+	Mm0Green float64 // 0 mm: at/above → green
+	Mm0Warn  float64 // 0 mm: at/above → yellow (below → red)
+	Mm1Green float64 // ≤1 mm: at/above → green
+	Mm1Warn  float64 // ≤1 mm: at/above → yellow (below → red)
+	Mm2Green float64 // >1 mm: at/below → green
+	Mm2Warn  float64 // >1 mm: at/below → yellow (above → red)
 }
 
 type Assay struct {
@@ -124,7 +136,13 @@ CREATE TABLE IF NOT EXISTS users (
   blast_min_coverage  REAL NOT NULL DEFAULT 0.9,
   blast_min_identity  REAL NOT NULL DEFAULT 0.6,
   blast_hitlist_size  INTEGER NOT NULL DEFAULT 20000,
-  dashboard_run_count INTEGER NOT NULL DEFAULT 5
+  dashboard_run_count INTEGER NOT NULL DEFAULT 5,
+  mm0_green           REAL NOT NULL DEFAULT 90,
+  mm0_warn            REAL NOT NULL DEFAULT 70,
+  mm1_green           REAL NOT NULL DEFAULT 95,
+  mm1_warn            REAL NOT NULL DEFAULT 80,
+  mm2_green           REAL NOT NULL DEFAULT 5,
+  mm2_warn            REAL NOT NULL DEFAULT 20
 );
 
 CREATE TABLE IF NOT EXISTS assays (
@@ -184,8 +202,60 @@ CREATE TABLE IF NOT EXISTS result_artifacts (
 `
 
 func (s *Store) migrate() error {
-	_, err := s.db.Exec(schema)
-	return err
+	if _, err := s.db.Exec(schema); err != nil {
+		return err
+	}
+	return s.ensureUserColumns()
+}
+
+// ensureUserColumns adds user/profile columns introduced after the initial
+// schema to pre-existing databases. Fresh databases already have them from
+// `schema`; this makes the additive change non-destructive for older DB files
+// (there is still no general migration system — see Open). Additive and
+// idempotent: only missing columns are added.
+func (s *Store) ensureUserColumns() error {
+	have, err := s.tableColumns("users")
+	if err != nil {
+		return err
+	}
+	adds := []struct{ name, ddl string }{
+		{"mm0_green", `ALTER TABLE users ADD COLUMN mm0_green REAL NOT NULL DEFAULT 90`},
+		{"mm0_warn", `ALTER TABLE users ADD COLUMN mm0_warn REAL NOT NULL DEFAULT 70`},
+		{"mm1_green", `ALTER TABLE users ADD COLUMN mm1_green REAL NOT NULL DEFAULT 95`},
+		{"mm1_warn", `ALTER TABLE users ADD COLUMN mm1_warn REAL NOT NULL DEFAULT 80`},
+		{"mm2_green", `ALTER TABLE users ADD COLUMN mm2_green REAL NOT NULL DEFAULT 5`},
+		{"mm2_warn", `ALTER TABLE users ADD COLUMN mm2_warn REAL NOT NULL DEFAULT 20`},
+	}
+	for _, a := range adds {
+		if have[a.name] {
+			continue
+		}
+		if _, err := s.db.Exec(a.ddl); err != nil {
+			return fmt.Errorf("add column %s: %w", a.name, err)
+		}
+	}
+	return nil
+}
+
+// tableColumns returns the set of existing column names for a table. The table
+// name is a trusted internal constant (never user input).
+func (s *Store) tableColumns(table string) (map[string]bool, error) {
+	rows, err := s.db.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, ctype string
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return nil, err
+		}
+		cols[name] = true
+	}
+	return cols, rows.Err()
 }
 
 // Timestamps are stored as RFC3339 UTC text for portability and to avoid

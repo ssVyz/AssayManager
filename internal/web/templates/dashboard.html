@@ -28,16 +28,16 @@
       <td>{{fmtTime .When}}</td>
       <td>{{.DateRange}}</td>
       <td>{{.Sequences}}</td>
-      <td class="mm-good" title="{{.Zero.Count}} sequences">{{printf "%.1f" .Zero.Pct}}%</td>
-      <td class="mm-warn" title="{{.One.Count}} sequences">{{printf "%.1f" .One.Pct}}%</td>
-      <td class="mm-bad" title="{{.Two.Count}} sequences">{{printf "%.1f" .Two.Pct}}%</td>
-      <td class="mm-none" title="{{.None.Count}} sequences">{{printf "%.1f" .None.Pct}}%</td>
+      <td class="{{.Zero.Class}}" title="{{.Zero.Count}} sequences">{{printf "%.1f" .Zero.Pct}}%</td>
+      <td class="{{.One.Class}}" title="{{.One.Count}} sequences">{{printf "%.1f" .One.Pct}}%</td>
+      <td class="{{.Two.Class}}" title="{{.Two.Count}} sequences">{{printf "%.1f" .Two.Pct}}%</td>
+      <td class="{{.None.Class}}" title="{{.None.Count}} sequences">{{printf "%.1f" .None.Pct}}%</td>
     </tr>
   {{end}}
   </tbody>
 </table>
 </div>
-<p class="muted">Percentages of sequences by worst-category mismatch. Change how many runs show on your <a href="/profile">profile</a>.</p>
+<p class="muted">Percentages of sequences by worst-category mismatch. Cell colours and how many runs show are set on your <a href="/profile">profile</a>.</p>
 {{else}}
 <p class="muted">No completed runs yet. <a href="/run">Run a check</a>.</p>
 {{end}}

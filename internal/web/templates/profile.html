@@ -23,6 +23,40 @@
     <input type="number" name="dashboard_run_count" min="1" max="50" step="1" value="{{.User.DashboardRunCount}}" required>
   </label>
 
+  <h3>Colour thresholds</h3>
+  <p class="muted">Colour each dashboard mismatch cell by its percentage: green (good),
+    yellow (watch), red (problem). "No match" is always grey. Percentages 0–100.</p>
+
+  <fieldset class="stack">
+    <legend>0 mismatches <span class="muted">(higher is better)</span></legend>
+    <label>Green at or above (%)
+      <input type="number" name="mm0_green" min="0" max="100" step="0.1" value="{{.User.Mm0Green}}" required>
+    </label>
+    <label>Yellow at or above (%) <span class="muted">— below this is red</span>
+      <input type="number" name="mm0_warn" min="0" max="100" step="0.1" value="{{.User.Mm0Warn}}" required>
+    </label>
+  </fieldset>
+
+  <fieldset class="stack">
+    <legend>&le;1 mismatch <span class="muted">(higher is better)</span></legend>
+    <label>Green at or above (%)
+      <input type="number" name="mm1_green" min="0" max="100" step="0.1" value="{{.User.Mm1Green}}" required>
+    </label>
+    <label>Yellow at or above (%) <span class="muted">— below this is red</span>
+      <input type="number" name="mm1_warn" min="0" max="100" step="0.1" value="{{.User.Mm1Warn}}" required>
+    </label>
+  </fieldset>
+
+  <fieldset class="stack">
+    <legend>&gt;1 mismatch <span class="muted">(higher is worse)</span></legend>
+    <label>Green at or below (%)
+      <input type="number" name="mm2_green" min="0" max="100" step="0.1" value="{{.User.Mm2Green}}" required>
+    </label>
+    <label>Yellow at or below (%) <span class="muted">— above this is red</span>
+      <input type="number" name="mm2_warn" min="0" max="100" step="0.1" value="{{.User.Mm2Warn}}" required>
+    </label>
+  </fieldset>
+
   <button type="submit">Save</button>
 </form>
 {{end}}

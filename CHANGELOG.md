@@ -9,6 +9,23 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.2] - 2026-08-13
+
+### Added
+- Per-user dashboard colour thresholds. The dashboard mismatch cells (0 mm,
+  ≤1 mm, >1 mm) are now coloured green/yellow/red by user-defined zones instead
+  of fixed colours, so problem runs stand out at a glance. Each category has two
+  cutoffs set on the profile page: for 0 mm and ≤1 mm a higher percentage is
+  better (green is the high end); for >1 mm a higher percentage is worse (green
+  is the low end). "No match" stays grey.
+  - Stored as six new `users` columns (`mm0_green/mm0_warn`, `mm1_*`, `mm2_*`)
+    with sensible defaults (0 mm: 90/70; ≤1 mm: 95/80; >1 mm: 5/20). Existing
+    databases are upgraded in place by an additive, idempotent `ALTER TABLE`
+    step at startup (no DB wipe needed).
+  - Colour selection moved from fixed template classes into a unit-tested
+    `mmClass` helper; the profile save validates the thresholds (0–100, green on
+    the correct side of yellow per category).
+
 ## [0.3.1] - 2026-08-10
 
 ### Fixed

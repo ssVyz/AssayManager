@@ -14,6 +14,14 @@ type Profile struct {
 	BlastMinIdentity  float64
 	BlastHitlistSize  int
 	DashboardRunCount int
+
+	// Dashboard mismatch-colour thresholds (percentages, 0–100). See User.
+	Mm0Green float64
+	Mm0Warn  float64
+	Mm1Green float64
+	Mm1Warn  float64
+	Mm2Green float64
+	Mm2Warn  float64
 }
 
 // CreateUser inserts a new user with an empty profile and returns its id.
@@ -40,7 +48,8 @@ func (s *Store) UsernameTaken(username string) (bool, error) {
 }
 
 const userCols = `SELECT id, username, name, organisation, pw_hash, created_at,
-	blast_min_coverage, blast_min_identity, blast_hitlist_size, dashboard_run_count FROM users`
+	blast_min_coverage, blast_min_identity, blast_hitlist_size, dashboard_run_count,
+	mm0_green, mm0_warn, mm1_green, mm1_warn, mm2_green, mm2_warn FROM users`
 
 func (s *Store) UserByUsername(username string) (User, error) {
 	row := s.db.QueryRow(userCols+` WHERE username = ? COLLATE NOCASE`, username)
@@ -58,10 +67,13 @@ func (s *Store) UpdateProfile(id int64, p Profile) error {
 		`UPDATE users
 		    SET name = ?, organisation = ?,
 		        blast_min_coverage = ?, blast_min_identity = ?, blast_hitlist_size = ?,
-		        dashboard_run_count = ?
+		        dashboard_run_count = ?,
+		        mm0_green = ?, mm0_warn = ?, mm1_green = ?, mm1_warn = ?,
+		        mm2_green = ?, mm2_warn = ?
 		  WHERE id = ?`,
 		p.Name, p.Organisation, p.BlastMinCoverage, p.BlastMinIdentity, p.BlastHitlistSize,
-		p.DashboardRunCount, id)
+		p.DashboardRunCount,
+		p.Mm0Green, p.Mm0Warn, p.Mm1Green, p.Mm1Warn, p.Mm2Green, p.Mm2Warn, id)
 	return err
 }
 
@@ -69,7 +81,8 @@ func scanUser(row *sql.Row) (User, error) {
 	var u User
 	var ts string
 	err := row.Scan(&u.ID, &u.Username, &u.Name, &u.Organisation, &u.PwHash, &ts,
-		&u.BlastMinCoverage, &u.BlastMinIdentity, &u.BlastHitlistSize, &u.DashboardRunCount)
+		&u.BlastMinCoverage, &u.BlastMinIdentity, &u.BlastHitlistSize, &u.DashboardRunCount,
+		&u.Mm0Green, &u.Mm0Warn, &u.Mm1Green, &u.Mm1Warn, &u.Mm2Green, &u.Mm2Warn)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
