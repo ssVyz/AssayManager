@@ -7,7 +7,7 @@
 <form method="post" action="/assays/export">
   <input type="hidden" name="csrf_token" value="{{.CSRF}}">
   <table class="grid">
-    <thead><tr><th></th><th>Name</th><th>Latest version</th><th>Author</th><th>Updated</th><th></th></tr></thead>
+    <thead><tr><th><input type="checkbox" class="check-all" aria-label="select all assays"></th><th>Name</th><th>Latest version</th><th>Author</th><th>Updated</th><th></th></tr></thead>
     <tbody>
     {{range .Data}}
       <tr>

@@ -56,7 +56,7 @@
   <form method="post" action="/run/batch" class="stack">
     <input type="hidden" name="csrf_token" value="{{.CSRF}}">
     <table class="grid">
-      <thead><tr><th></th><th>Assay</th><th>Version</th><th>BLAST</th></tr></thead>
+      <thead><tr><th><input type="checkbox" class="check-all" aria-label="select all eligible assays"></th><th>Assay</th><th>Version</th><th>BLAST</th></tr></thead>
       <tbody>
       {{range .Data.BatchAssays}}
         <tr>

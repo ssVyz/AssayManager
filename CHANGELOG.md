@@ -9,6 +9,18 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.4] - 2026-08-13
+
+### Added
+- "Select all" checkboxes for the multi-select lists: the Assays list (export)
+  and the Run check → Batch BLAST list. A master checkbox in each table header
+  toggles every checkbox in that table and reflects the group state
+  (checked/indeterminate) as rows are ticked individually.
+- This is the app's first client-side script (`static/app.js`, loaded with
+  `defer`) — a genuine "check all" can't be done in HTML/CSS alone. It is
+  progressive enhancement: without JavaScript, the individual checkboxes work
+  exactly as before.
+
 ## [0.3.3] - 2026-08-13
 
 ### Fixed
