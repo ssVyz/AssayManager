@@ -88,10 +88,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 			row.One = catCell{ov.MaxOneMismatch, dashPct(ov.MaxOneMismatch, total), ""}
 			row.Two = catCell{ov.TwoPlusMismatches, dashPct(ov.TwoPlusMismatches, total), ""}
 			row.None = catCell{ov.NoMatch, dashPct(ov.NoMatch, total), "mm-none"}
-			// Colour by the user's per-category zones. 0-mm and ≤1-mm: higher is
-			// better; >1-mm: higher is worse. "No match" stays neutral (grey).
+			// Colour by the user's per-category zones. Only 0-mm is "higher is
+			// better"; 1-mm and >1-mm are defect buckets, so higher is worse.
+			// "No match" stays neutral (grey).
 			row.Zero.Class = mmClass(row.Zero.Pct, user.Mm0Green, user.Mm0Warn, true)
-			row.One.Class = mmClass(row.One.Pct, user.Mm1Green, user.Mm1Warn, true)
+			row.One.Class = mmClass(row.One.Pct, user.Mm1Green, user.Mm1Warn, false)
 			row.Two.Class = mmClass(row.Two.Pct, user.Mm2Green, user.Mm2Warn, false)
 		}
 		rows = append(rows, row)
@@ -170,8 +171,9 @@ func (s *Server) handleProfileSave(w http.ResponseWriter, r *http.Request) {
 	hits, errHits := strconv.Atoi(strings.TrimSpace(r.FormValue("blast_hitlist_size")))
 	runs, errRuns := strconv.Atoi(strings.TrimSpace(r.FormValue("dashboard_run_count")))
 
-	// Dashboard colour thresholds (percentages 0–100). For the higher-is-better
-	// categories green must be ≥ warn; for >1-mm (higher is worse) green ≤ warn.
+	// Dashboard colour thresholds (percentages 0–100). Only 0-mm is higher-is-
+	// better (green ≥ warn); the 1-mm and >1-mm defect buckets are higher-is-
+	// worse (green ≤ warn).
 	mm0g, ok0g := pctField(r, "mm0_green")
 	mm0w, ok0w := pctField(r, "mm0_warn")
 	mm1g, ok1g := pctField(r, "mm1_green")
@@ -179,7 +181,7 @@ func (s *Server) handleProfileSave(w http.ResponseWriter, r *http.Request) {
 	mm2g, ok2g := pctField(r, "mm2_green")
 	mm2w, ok2w := pctField(r, "mm2_warn")
 	mmOK := ok0g && ok0w && ok1g && ok1w && ok2g && ok2w &&
-		mm0g >= mm0w && mm1g >= mm1w && mm2g <= mm2w
+		mm0g >= mm0w && mm1g <= mm1w && mm2g <= mm2w
 
 	if errCov != nil || errID != nil || errHits != nil || errRuns != nil ||
 		cov <= 0 || cov > 1 || ident <= 0 || ident > 1 || hits <= 0 ||

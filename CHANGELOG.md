@@ -9,6 +9,21 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.3] - 2026-08-13
+
+### Fixed
+- Dashboard colour thresholds: the 1-mismatch category is now treated as
+  "higher is worse" (a defect bucket), matching >1 mm, instead of "higher is
+  better". The three mismatch buckets are computed from each sequence's worst
+  category and are mutually exclusive (0 / exactly 1 / ≥2), so a rising
+  1-mismatch percentage is bad and must colour red. Its profile inputs now read
+  "at or below", validation requires green ≤ warn, and the default cutoffs are
+  10/30 (green/yellow). The dashboard column header is relabelled "≤1 mm" → "1
+  mm" so the buckets read as a clean partition (0 mm / 1 mm / >1 mm).
+- Startup migration resets any stored 1-mismatch thresholds left in the old
+  arrangement (green > warn) to the new 10/30 defaults, so profiles saved under
+  0.3.2 aren't left with an invalid, effectively all-green config.
+
 ## [0.3.2] - 2026-08-13
 
 ### Added

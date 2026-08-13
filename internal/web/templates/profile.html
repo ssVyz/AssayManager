@@ -38,11 +38,11 @@
   </fieldset>
 
   <fieldset class="stack">
-    <legend>&le;1 mismatch <span class="muted">(higher is better)</span></legend>
-    <label>Green at or above (%)
+    <legend>1 mismatch <span class="muted">(higher is worse)</span></legend>
+    <label>Green at or below (%)
       <input type="number" name="mm1_green" min="0" max="100" step="0.1" value="{{.User.Mm1Green}}" required>
     </label>
-    <label>Yellow at or above (%) <span class="muted">— below this is red</span>
+    <label>Yellow at or below (%) <span class="muted">— above this is red</span>
       <input type="number" name="mm1_warn" min="0" max="100" step="0.1" value="{{.User.Mm1Warn}}" required>
     </label>
   </fieldset>

@@ -42,13 +42,14 @@ type User struct {
 
 	// Dashboard mismatch-colour thresholds (percentages, 0–100). Each mismatch
 	// cell on the dashboard is coloured green/yellow/red by which zone its
-	// percentage lands in. For 0-mm and ≤1-mm a higher percentage is better
-	// (green is the high end); for >1-mm a higher percentage is worse (green is
-	// the low end). "No match" is not coloured.
+	// percentage lands in. Only the 0-mm bucket is a "higher is better" measure
+	// (green is the high end); the 1-mm and >1-mm buckets are defect buckets
+	// (worst-category mismatch counts), so a higher percentage is worse there
+	// (green is the low end). "No match" is not coloured.
 	Mm0Green float64 // 0 mm: at/above → green
 	Mm0Warn  float64 // 0 mm: at/above → yellow (below → red)
-	Mm1Green float64 // ≤1 mm: at/above → green
-	Mm1Warn  float64 // ≤1 mm: at/above → yellow (below → red)
+	Mm1Green float64 // 1 mm: at/below → green
+	Mm1Warn  float64 // 1 mm: at/below → yellow (above → red)
 	Mm2Green float64 // >1 mm: at/below → green
 	Mm2Warn  float64 // >1 mm: at/below → yellow (above → red)
 }
@@ -139,8 +140,8 @@ CREATE TABLE IF NOT EXISTS users (
   dashboard_run_count INTEGER NOT NULL DEFAULT 5,
   mm0_green           REAL NOT NULL DEFAULT 90,
   mm0_warn            REAL NOT NULL DEFAULT 70,
-  mm1_green           REAL NOT NULL DEFAULT 95,
-  mm1_warn            REAL NOT NULL DEFAULT 80,
+  mm1_green           REAL NOT NULL DEFAULT 10,
+  mm1_warn            REAL NOT NULL DEFAULT 30,
   mm2_green           REAL NOT NULL DEFAULT 5,
   mm2_warn            REAL NOT NULL DEFAULT 20
 );
@@ -205,7 +206,19 @@ func (s *Store) migrate() error {
 	if _, err := s.db.Exec(schema); err != nil {
 		return err
 	}
-	return s.ensureUserColumns()
+	if err := s.ensureUserColumns(); err != nil {
+		return err
+	}
+	// The 1-mismatch dashboard category switched from "higher is better" to
+	// "higher is worse" (a defect bucket), which inverts the required threshold
+	// ordering: green must now be ≤ warn. Reset any rows still in the old
+	// arrangement (green > warn) to the new defaults so they aren't left with an
+	// invalid, effectively all-green config. Idempotent: valid rows already
+	// satisfy green ≤ warn and are untouched.
+	if _, err := s.db.Exec(`UPDATE users SET mm1_green = 10, mm1_warn = 30 WHERE mm1_green > mm1_warn`); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ensureUserColumns adds user/profile columns introduced after the initial
@@ -221,8 +234,8 @@ func (s *Store) ensureUserColumns() error {
 	adds := []struct{ name, ddl string }{
 		{"mm0_green", `ALTER TABLE users ADD COLUMN mm0_green REAL NOT NULL DEFAULT 90`},
 		{"mm0_warn", `ALTER TABLE users ADD COLUMN mm0_warn REAL NOT NULL DEFAULT 70`},
-		{"mm1_green", `ALTER TABLE users ADD COLUMN mm1_green REAL NOT NULL DEFAULT 95`},
-		{"mm1_warn", `ALTER TABLE users ADD COLUMN mm1_warn REAL NOT NULL DEFAULT 80`},
+		{"mm1_green", `ALTER TABLE users ADD COLUMN mm1_green REAL NOT NULL DEFAULT 10`},
+		{"mm1_warn", `ALTER TABLE users ADD COLUMN mm1_warn REAL NOT NULL DEFAULT 30`},
 		{"mm2_green", `ALTER TABLE users ADD COLUMN mm2_green REAL NOT NULL DEFAULT 5`},
 		{"mm2_warn", `ALTER TABLE users ADD COLUMN mm2_warn REAL NOT NULL DEFAULT 20`},
 	}
