@@ -9,6 +9,17 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.5] - 2026-08-13
+
+### Added
+- Dashboard runs list can now be filtered by assay. A toggle above the list
+  switches between "Recent" (the default — the most recent completed runs across
+  all assays, exactly as before) and "Assay" (pick one assay from a dropdown to
+  see only its completed checks). Assay mode shows the full history for that
+  assay across all its versions, newest first (not capped by the profile's
+  recent-runs setting). Implemented as a plain GET form, so it works without
+  JavaScript.
+
 ## [0.3.4] - 2026-08-13
 
 ### Added

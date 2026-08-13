@@ -13,7 +13,21 @@
   <a class="btn secondary" href="/run">Run check</a>
 </p>
 
-<h2>Recent runs</h2>
+<h2>{{if eq .Data.View "assay"}}{{.Data.SelectedAssay}} — check results{{else}}Recent runs{{end}}</h2>
+
+{{if .Data.AssayNames}}
+<form method="get" action="/" class="dashfilter">
+  <span class="dashfilter-modes">
+    <label><input type="radio" name="view" value="recent"{{if ne .Data.View "assay"}} checked{{end}}> Recent</label>
+    <label><input type="radio" name="view" value="assay"{{if eq .Data.View "assay"}} checked{{end}}> Assay</label>
+  </span>
+  <select name="assay" aria-label="Assay to show">
+    {{range .Data.AssayNames}}<option value="{{.}}"{{if eq . $.Data.SelectedAssay}} selected{{end}}>{{.}}</option>{{end}}
+  </select>
+  <button type="submit">Show</button>
+</form>
+{{end}}
+
 {{if .Data.RecentRuns}}
 <div class="tablewrap">
 <table class="grid">
@@ -37,8 +51,12 @@
   </tbody>
 </table>
 </div>
-<p class="muted">Percentages of sequences by worst-category mismatch. Cell colours and how many runs show are set on your <a href="/profile">profile</a>.</p>
+{{if eq .Data.View "assay"}}
+<p class="muted">All completed checks for this assay (every version), newest first. Cell colours are set on your <a href="/profile">profile</a>.</p>
 {{else}}
-<p class="muted">No completed runs yet. <a href="/run">Run a check</a>.</p>
+<p class="muted">Percentages of sequences by worst-category mismatch. Cell colours and how many runs show are set on your <a href="/profile">profile</a>.</p>
+{{end}}
+{{else}}
+<p class="muted">{{if eq .Data.View "assay"}}No completed checks for this assay yet.{{else}}No completed runs yet.{{end}} <a href="/run">Run a check</a>.</p>
 {{end}}
 {{end}}

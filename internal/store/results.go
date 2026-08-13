@@ -114,6 +114,29 @@ func (s *Store) RecentDoneResults(ownerID int64, limit int) ([]Result, error) {
 	return out, rows.Err()
 }
 
+// DoneResultsByAssayName returns all of the owner's completed runs for a single
+// assay, matched by name (i.e. across every version of that assay), newest
+// first. Unlike RecentDoneResults it is not capped — it is the full check
+// history for the one selected assay.
+func (s *Store) DoneResultsByAssayName(ownerID int64, name string) ([]Result, error) {
+	rows, err := s.db.Query(
+		resultCols+` WHERE owner_id = ? AND status = ? AND assay_name = ? ORDER BY started_at DESC`,
+		ownerID, StatusDone, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Result
+	for rows.Next() {
+		r, err := scanResult(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 const resultCols = `SELECT id, owner_id, assay_id, assay_name, assay_version, reference_name,
 	source, blast_from, blast_to, status, params, report, error, tool_name, tool_version,
 	schema_version, started_at, finished_at

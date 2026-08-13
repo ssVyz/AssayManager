@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,13 @@ type dashboardData struct {
 	RunCount    int
 	RunningRuns int
 	RecentRuns  []dashboardRunRow
+
+	// Runs-list filter. View is "recent" (most recent across all assays, capped
+	// by the profile setting) or "assay" (every completed run for SelectedAssay,
+	// newest first). AssayNames populates the filter dropdown.
+	View          string
+	SelectedAssay string
+	AssayNames    []string
 }
 
 // catCell is a count with its percentage of the sequence total, plus the CSS
@@ -59,18 +68,45 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	limit := user.DashboardRunCount
-	if limit <= 0 {
-		limit = 5
+	// Assay names (lineages) for the filter dropdown, sorted for a stable order.
+	assayNames := make([]string, 0, len(lineages))
+	for _, a := range lineages {
+		assayNames = append(assayNames, a.Name)
 	}
-	if limit > 50 {
-		limit = 50
+	sort.Strings(assayNames)
+
+	// Runs-list filter: "recent" (default) or "assay". Assay mode shows the full
+	// completed-run history of one selected assay (matched by name); an unknown
+	// or missing selection falls back to the first assay.
+	view := "recent"
+	selected := ""
+	var recent []store.Result
+	if r.URL.Query().Get("view") == "assay" && len(assayNames) > 0 {
+		view = "assay"
+		selected = r.URL.Query().Get("assay")
+		if !slices.Contains(assayNames, selected) {
+			selected = assayNames[0]
+		}
+		recent, err = s.store.DoneResultsByAssayName(user.ID, selected)
+		if err != nil {
+			s.serverError(w, "assay runs", err)
+			return
+		}
+	} else {
+		limit := user.DashboardRunCount
+		if limit <= 0 {
+			limit = 5
+		}
+		if limit > 50 {
+			limit = 50
+		}
+		recent, err = s.store.RecentDoneResults(user.ID, limit)
+		if err != nil {
+			s.serverError(w, "recent runs", err)
+			return
+		}
 	}
-	recent, err := s.store.RecentDoneResults(user.ID, limit)
-	if err != nil {
-		s.serverError(w, "recent runs", err)
-		return
-	}
+
 	rows := make([]dashboardRunRow, 0, len(recent))
 	for _, res := range recent {
 		row := dashboardRunRow{
@@ -100,10 +136,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	pd := s.page(r, "dashboard", "Dashboard")
 	pd.Data = dashboardData{
-		AssayCount:  len(lineages),
-		RunCount:    len(results),
-		RunningRuns: running,
-		RecentRuns:  rows,
+		AssayCount:    len(lineages),
+		RunCount:      len(results),
+		RunningRuns:   running,
+		RecentRuns:    rows,
+		View:          view,
+		SelectedAssay: selected,
+		AssayNames:    assayNames,
 	}
 	s.render(w, http.StatusOK, "dashboard", pd)
 }
