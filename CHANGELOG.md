@@ -9,6 +9,28 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.7] - 2026-08-20
+
+### Added
+- Automatic database backups (ops-level, not exposed in the web UI). Backups use
+  SQLite's `VACUUM INTO` to write a consistent, standalone snapshot — safe to run
+  against the live WAL-mode database, unlike copying the file. Configuration is a
+  small self-documenting INI file (`backup.ini`) generated beside the database on
+  first startup with backups **disabled** by default; it is read only at startup.
+  Settings: `enabled`, `dir` (destination), `interval` (Go duration, default
+  `24h`). Whether a backup is due is derived from the timestamp in the newest
+  backup's filename (`<db-name>-YYYYMMDDThhmmssZ.db`), and each attempt is
+  appended to a backup log in the destination directory.
+  - The destination directory is **never created automatically** and must already
+    exist — typically a mounted network volume. If it is missing at startup or
+    backup time (e.g. the volume is not mounted), the server logs a warning and
+    keeps running, retrying on later checks and resuming automatically when the
+    directory reappears. This deliberately avoids silently writing backups to
+    local disk at an unmounted mountpoint.
+  - No automatic retention: backup files accumulate and are pruned manually.
+  - Restore: stop the server, replace the live database with a chosen backup,
+    delete any stale `-wal`/`-shm` files, and restart.
+
 ## [0.3.6] - 2026-08-20
 
 ### Fixed

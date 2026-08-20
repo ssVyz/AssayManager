@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"AssayManager/internal/analysis"
 	"AssayManager/internal/auth"
+	"AssayManager/internal/backup"
 	"AssayManager/internal/config"
 	"AssayManager/internal/store"
 	"AssayManager/internal/web"
@@ -25,7 +27,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.3.6"
+const Version = "0.3.7"
 
 func main() {
 	// Load .env first so it can supply any AM_* setting (real env vars win).
@@ -101,6 +103,25 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	// Recurring-job scheduler runs until the context is cancelled (shutdown).
 	srv.StartScheduler(ctx)
+
+	// Ops-level backups. Config lives beside the DB and is read only here, at
+	// startup. When disabled (the default) nothing runs; when enabled, a runner
+	// takes periodic snapshots until shutdown, tolerating an unavailable
+	// destination (e.g. an unmounted network volume).
+	backupIni := filepath.Join(filepath.Dir(cfg.DBPath), "backup.ini")
+	bcfg, created, berr := config.LoadOrCreateBackupConfig(backupIni)
+	if created {
+		logger.Info("generated default backup config", "path", backupIni)
+	}
+	if berr != nil {
+		logger.Warn("backup config problem; using defaults where needed", "path", backupIni, "err", berr)
+	}
+	if bcfg.Enabled {
+		logger.Info("backups enabled", "dir", bcfg.Dir, "interval", bcfg.Interval)
+		backup.New(bcfg, cfg.DBPath, st, logger).Start(ctx)
+	} else {
+		logger.Info("backups disabled (edit backup.ini to enable)", "path", backupIni)
+	}
 
 	serveErr := make(chan error, 1)
 	go func() {
