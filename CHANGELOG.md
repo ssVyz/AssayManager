@@ -9,6 +9,19 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.8] - 2026-08-20
+
+### Fixed
+- Backups to a network mount (NFS/CIFS) failed with `database is locked
+  (SQLITE_BUSY)` and never wrote a file. `VACUUM INTO` creates a real SQLite
+  database and takes file locks on it, and those locks are unreliable on network
+  filesystems. The runner now writes the snapshot to a local temp file (beside
+  the live database, on a lock-capable filesystem) and then copies the finished,
+  static file to the destination with plain byte I/O — no SQLite locking touches
+  the share. The copy goes to a `.part` temp name and is renamed into place, so a
+  partial copy never appears as a valid backup, and the local temp is removed
+  afterwards. Failures now record which stage failed (snapshot / copy / publish).
+
 ## [0.3.7] - 2026-08-20
 
 ### Added
