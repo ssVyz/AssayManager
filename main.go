@@ -25,7 +25,7 @@ import (
 //   - MINOR / MAJOR: humans only, on explicit request.
 //
 // Keep this in sync with the latest entry in CHANGELOG.md.
-const Version = "0.3.5"
+const Version = "0.3.6"
 
 func main() {
 	// Load .env first so it can supply any AM_* setting (real env vars win).
@@ -71,6 +71,16 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("open database %q: %w", cfg.DBPath, err)
 	}
 	defer st.Close()
+
+	// Reconcile orphaned runs before serving: any run still marked "running" is
+	// a leftover from a previous process (a crash or abrupt shutdown stranded
+	// it), so fail it. This makes the DB reflect reality and guarantees the run
+	// queue starts clean regardless of how the last process ended.
+	if n, err := st.FailStaleRuns("interrupted by a server restart"); err != nil {
+		logger.Error("reconcile orphaned runs", "err", err)
+	} else if n > 0 {
+		logger.Warn("reset orphaned runs to failed at startup", "count", n)
+	}
 
 	sessions := auth.NewManager(24 * time.Hour)
 	analyzer := analysis.NewCLI(cfg.InclusivityBin, cfg.AnalysisTimeout, cfg.NCBIEmail, cfg.NCBITool, logger)

@@ -9,6 +9,29 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.6] - 2026-08-20
+
+### Fixed
+- A run could get stuck in the "running" state forever and wedge the whole run
+  queue: with the default single run slot, one stalled analysis (e.g. a BLAST
+  request that hangs on NCBI) held the slot indefinitely, blocking every
+  subsequent manual and scheduled run, and a restart did not clear the stranded
+  row. Two independent safeguards now prevent this:
+  - **Startup reconciliation.** On boot the server fails every run still marked
+    "running" (`store.FailStaleRuns`, logged with a count). Such a run can only
+    be an orphan from a previous process, so the DB is made honest and the queue
+    always starts clean — regardless of how the last process ended.
+  - **Independent run watchdog.** Each analysis now runs in a child goroutine
+    supervised by a watchdog that frees the queue slot and marks the run failed
+    even if the analysis goroutine itself wedges and never returns. The analysis
+    timeout still kills the subprocess; the watchdog is the backstop for a kill
+    that fails to unblock the goroutine.
+
+### Changed
+- Default per-run analysis timeout lowered from 30 to 15 minutes
+  (`AM_ANALYSIS_TIMEOUT`). A run is terminated 15 minutes after it starts; the
+  watchdog abandons a wedged run one minute later.
+
 ## [0.3.5] - 2026-08-13
 
 ### Added

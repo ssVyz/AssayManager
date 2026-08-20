@@ -217,8 +217,8 @@ func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Run in the background (bounded). The results row already exists; this
-	// goroutine fills it in when done. If the server dies mid-run, the row is
-	// left "running" (orphaned), per the MVP model.
+	// goroutine fills it in when done. A run left "running" by an abrupt crash
+	// is reconciled to "failed" at the next startup (store.FailStaleRuns).
 	go s.runAnalysis(resultID, req, cleanupPath)
 
 	http.Redirect(w, r, "/results?msg=run_started", http.StatusSeeOther)
@@ -377,16 +377,78 @@ func runBatchSummaryFlash(r *http.Request) (text, kind string) {
 	return fmt.Sprintf("Started %d BLAST run(s).", started), "ok"
 }
 
+// runWatchdogGrace is how long the run supervisor waits past the analysis
+// timeout before forcibly abandoning a run. The analysis timeout kills the
+// subprocess and returns an error well within this window; the extra grace lets
+// that clean path record a real failure first. The watchdog is the backstop for
+// a run goroutine that wedges and never returns at all (e.g. a subprocess kill
+// that fails to unblock cmd.Wait) — it frees the slot regardless.
+const runWatchdogGrace = 60 * time.Second
+
+// runAnalysis executes one run to completion and records the outcome, bounding
+// concurrency with runSem. The analysis itself runs in a child goroutine so an
+// independent watchdog can fail the row and free the queue slot even if that
+// goroutine gets stuck and never returns. The results row already exists (the
+// caller created it); this fills in its outcome.
 func (s *Server) runAnalysis(resultID int64, req analysis.Request, cleanupPath string) {
 	if cleanupPath != "" {
 		defer os.Remove(cleanupPath)
 	}
 
-	// Bound concurrency: each run is internally parallel, so cap simultaneous runs.
+	// Bound concurrency: each run is internally parallel, so cap simultaneous
+	// runs. The slot is released exactly once, by whichever path finishes first.
 	s.runSem <- struct{}{}
-	defer func() { <-s.runSem }()
+	released := false
+	release := func() {
+		if !released {
+			released = true
+			<-s.runSem
+		}
+	}
+	defer release()
 
-	rep, err := s.analyzer.Run(context.Background(), req)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run the analysis off to the side so the watchdog can resolve the row and
+	// free the slot even if this never returns. done is buffered so a late
+	// finish never blocks on the send after the watchdog has already moved on.
+	type outcome struct {
+		rep analysis.Report
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		rep, err := s.analyzer.Run(ctx, req)
+		done <- outcome{rep, err}
+	}()
+
+	// Watchdog fires independently of the run goroutine, once the analysis has
+	// had its full timeout plus grace. Disabled when no timeout is configured.
+	limit := s.cfg.AnalysisTimeout + s.watchdogGrace
+	var watchdog <-chan time.Time
+	if s.cfg.AnalysisTimeout > 0 {
+		timer := time.NewTimer(limit)
+		defer timer.Stop()
+		watchdog = timer.C
+	}
+
+	select {
+	case o := <-done:
+		s.finishRun(resultID, o.rep, o.err)
+	case <-watchdog:
+		cancel()  // best-effort: cancel the context to kill the subprocess
+		release() // free the queue slot now, without waiting for the goroutine
+		s.log.Error("run watchdog fired; terminating stuck run", "result", resultID, "limit", limit)
+		if err := s.store.FailRun(resultID, fmt.Sprintf("run did not finish within %s and was terminated", limit)); err != nil {
+			s.log.Error("fail run (watchdog)", "result", resultID, "err", err)
+		}
+	}
+}
+
+// finishRun records a completed run's outcome: the error on failure, otherwise
+// the report and any generated artifacts.
+func (s *Server) finishRun(resultID int64, rep analysis.Report, err error) {
 	if err != nil {
 		if ferr := s.store.FailRun(resultID, err.Error()); ferr != nil {
 			s.log.Error("fail run", "result", resultID, "err", ferr)

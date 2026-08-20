@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"AssayManager/internal/analysis"
 	"AssayManager/internal/auth"
@@ -23,6 +24,10 @@ type Server struct {
 	analyzer analysis.Analyzer
 	tmpl     map[string]*template.Template
 	runSem   chan struct{} // bounds concurrent analysis runs
+
+	// watchdogGrace is how long runAnalysis waits past the analysis timeout
+	// before abandoning a wedged run. Defaults to runWatchdogGrace.
+	watchdogGrace time.Duration
 }
 
 func New(cfg config.Config, log *slog.Logger, st *store.Store, sessions *auth.Manager, analyzer analysis.Analyzer) (*Server, error) {
@@ -35,13 +40,14 @@ func New(cfg config.Config, log *slog.Logger, st *store.Store, sessions *auth.Ma
 		maxRuns = 1
 	}
 	return &Server{
-		cfg:      cfg,
-		log:      log,
-		store:    st,
-		sessions: sessions,
-		analyzer: analyzer,
-		tmpl:     tmpl,
-		runSem:   make(chan struct{}, maxRuns),
+		cfg:           cfg,
+		log:           log,
+		store:         st,
+		sessions:      sessions,
+		analyzer:      analyzer,
+		tmpl:          tmpl,
+		runSem:        make(chan struct{}, maxRuns),
+		watchdogGrace: runWatchdogGrace,
 	}, nil
 }
 

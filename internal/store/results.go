@@ -54,6 +54,22 @@ func (s *Store) FailRun(id int64, errMsg string) error {
 	return err
 }
 
+// FailStaleRuns marks every run still recorded as "running" as failed, with the
+// given message, and returns how many were reset. It is meant to run once at
+// startup: a run in the "running" state can only be an orphan from a previous
+// process (a crash or an abrupt shutdown stranded it), since no run outlives the
+// process that started it. Clearing them keeps the DB honest and lets the run
+// queue start from a clean slate.
+func (s *Store) FailStaleRuns(errMsg string) (int64, error) {
+	res, err := s.db.Exec(
+		`UPDATE results SET status = ?, error = ?, finished_at = ? WHERE status = ?`,
+		StatusFailed, errMsg, nowTS(), StatusRunning)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // ListResults returns a user's runs, newest first.
 func (s *Store) ListResults(ownerID int64) ([]Result, error) {
 	rows, err := s.db.Query(resultCols+` WHERE owner_id = ?`, ownerID)
