@@ -41,9 +41,10 @@
     </tbody>
   </table>
   <div class="actions">
+    <button type="submit" formmethod="get" formaction="/results/report" formtarget="_blank">Export PDF</button>
     <button type="submit" class="btn danger">Delete selected</button>
   </div>
-  <p class="muted">Deleting is permanent and removes the run's stored downloads. You will be asked to confirm.</p>
+  <p class="muted">Select one or more results. “Export PDF” opens a printable report in a new tab. Deleting is permanent and removes the run's stored downloads — you will be asked to confirm.</p>
 </form>
 {{else if .Data.HasFilter}}
 <p class="muted">No results match this filter. <a href="/results">Clear filter</a>.</p>

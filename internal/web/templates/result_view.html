@@ -4,17 +4,6 @@
   <h1>Run #{{$r.ID}}</h1>
   <a class="btn secondary" href="/results">Back to results</a>
 </div>
-<ul class="kv">
-  <li><span>Assay</span> {{$r.AssayName}} {{$r.AssayVersion}}</li>
-  <li><span>Reference</span> {{if $r.ReferenceName}}{{$r.ReferenceName}}{{else}}<span class="muted">—</span>{{end}}</li>
-  <li><span>Status</span> <span class="status {{$r.Status}}">{{$r.Status}}</span></li>
-  <li><span>Started</span> {{fmtTime $r.StartedAt}}</li>
-  <li><span>Finished</span> {{fmtTime $r.FinishedAt}}</li>
-  {{if $r.ToolName}}<li><span>Tool</span> {{$r.ToolName}} {{$r.ToolVersion}} (schema {{$r.SchemaVersion}})</li>{{end}}
-</ul>
-{{if $r.Params}}<h2>Notes</h2><pre class="code">{{$r.Params}}</pre>{{end}}
-{{if eq $r.Status "failed"}}<h2>Error</h2><pre class="code">{{$r.Error}}</pre>{{end}}
-{{if eq $r.Status "running"}}<p class="muted">This run is still in progress — reload to check for updates.</p>{{end}}
 
 {{if .Data.Downloads}}
 <h2>Downloads</h2>
@@ -23,74 +12,5 @@
 </p>
 {{end}}
 
-{{with .Data.View}}
-  <h2>Summary</h2>
-  <div class="tiles">
-    <div class="tile"><span class="num">{{.Total}}</span><span class="lbl">Sequences</span></div>
-    <div class="tile"><span class="num">{{.MeetThresholds}}</span><span class="lbl">Meet thresholds</span></div>
-    <div class="tile"><span class="num">{{.ValidAmplicon}}</span><span class="lbl">Valid amplicon</span></div>
-    <div class="tile"><span class="num">{{.FailedAmplicon}}</span><span class="lbl">Failed amplicon</span></div>
-  </div>
-
-  <h2>Mismatch distribution</h2>
-  <p class="muted">Best oligo per class, per sequence.</p>
-  <table class="grid">
-    <thead><tr><th>Oligo class</th><th>0 mismatches</th><th>1 mismatch</th><th>&gt;1 mismatch</th><th>No match</th></tr></thead>
-    <tbody>
-    {{range .ClassDist}}
-      <tr>
-        <td>{{.Label}}</td>
-        <td>{{.Zero.Count}} ({{printf "%.1f" .Zero.Pct}}%)</td>
-        <td>{{.One.Count}} ({{printf "%.1f" .One.Pct}}%)</td>
-        <td>{{.More.Count}} ({{printf "%.1f" .More.Pct}}%)</td>
-        <td>{{.None.Count}} ({{printf "%.1f" .None.Pct}}%)</td>
-      </tr>
-    {{end}}
-    </tbody>
-  </table>
-
-  <h2>Overall</h2>
-  <p class="muted">Worst best-match across all categories.</p>
-  <table class="grid">
-    <tbody>
-    {{range .Overall}}
-      <tr><td>{{.Label}}</td><td>{{.Count}} ({{printf "%.1f" .Pct}}%)</td></tr>
-    {{end}}
-    </tbody>
-  </table>
-
-  {{if .PatternRows}}
-  <h2>Mismatch patterns</h2>
-  <div class="tablewrap">
-  <table class="grid">
-    <thead>
-      <tr>
-        <th>Pattern</th>
-        {{range .OligoCols}}<th>{{.ID}}<br><span class="muted mono small">{{.Seq}}</span></th>{{end}}
-        <th>Count</th><th>%</th><th>Cumul %</th><th>Total mm</th><th>Fwd/Rev/Probe</th><th>Amplicon</th><th>Examples</th>
-      </tr>
-    </thead>
-    <tbody>
-    {{range .PatternRows}}
-      <tr>
-        <td>{{.Num}}</td>
-        {{range .Cells}}<td class="mono">{{.}}</td>{{end}}
-        <td>{{.Count}}</td>
-        <td>{{printf "%.1f" .Percentage}}</td>
-        <td>{{printf "%.1f" .Cumulative}}</td>
-        <td>{{.TotalMismatches}}</td>
-        <td>{{.MatchedFwd}}/{{.MatchedRev}}/{{.MatchedProbe}}</td>
-        <td>{{if .AmpliconLength}}{{.AmpliconLength}}{{else}}—{{end}}</td>
-        <td class="muted">{{.Examples}}</td>
-      </tr>
-    {{end}}
-    </tbody>
-  </table>
-  </div>
-  {{end}}
-
-  <details><summary>Raw JSON</summary><pre class="code">{{$r.Report}}</pre></details>
-{{else}}
-  {{if $r.Report}}<h2>Report</h2><pre class="code">{{$r.Report}}</pre>{{end}}
-{{end}}
+{{template "result_detail" .Data}}
 {{end}}

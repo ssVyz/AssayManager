@@ -109,29 +109,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 	rows := make([]dashboardRunRow, 0, len(recent))
 	for _, res := range recent {
-		row := dashboardRunRow{
-			ID:           res.ID,
-			AssayName:    res.AssayName,
-			AssayVersion: res.AssayVersion,
-			When:         res.StartedAt,
-			DateRange:    dateRangeLabel(res),
-		}
-		if parsed, perr := analysis.ParseResult([]byte(res.Report)); perr == nil {
-			total := parsed.Summary.TotalSequences
-			ov := parsed.Summary.Overall
-			row.Sequences = total
-			row.Zero = catCell{ov.AllPerfect, dashPct(ov.AllPerfect, total), ""}
-			row.One = catCell{ov.MaxOneMismatch, dashPct(ov.MaxOneMismatch, total), ""}
-			row.Two = catCell{ov.TwoPlusMismatches, dashPct(ov.TwoPlusMismatches, total), ""}
-			row.None = catCell{ov.NoMatch, dashPct(ov.NoMatch, total), "mm-none"}
-			// Colour by the user's per-category zones. Only 0-mm is "higher is
-			// better"; 1-mm and >1-mm are defect buckets, so higher is worse.
-			// "No match" stays neutral (grey).
-			row.Zero.Class = mmClass(row.Zero.Pct, user.Mm0Green, user.Mm0Warn, true)
-			row.One.Class = mmClass(row.One.Pct, user.Mm1Green, user.Mm1Warn, false)
-			row.Two.Class = mmClass(row.Two.Pct, user.Mm2Green, user.Mm2Warn, false)
-		}
-		rows = append(rows, row)
+		rows = append(rows, buildRunRow(user, res))
 	}
 
 	pd := s.page(r, "dashboard", "Dashboard")
@@ -145,6 +123,38 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		AssayNames:    assayNames,
 	}
 	s.render(w, http.StatusOK, "dashboard", pd)
+}
+
+// buildRunRow builds one mismatch-summary row (the dashboard "sneak peek", also
+// used on the PDF report cover) for a completed run, colouring each category by
+// the user's profile thresholds. Runs without a parseable structured report get
+// zeroed cells.
+func buildRunRow(user *store.User, res store.Result) dashboardRunRow {
+	row := dashboardRunRow{
+		ID:           res.ID,
+		AssayName:    res.AssayName,
+		AssayVersion: res.AssayVersion,
+		When:         res.StartedAt,
+		DateRange:    dateRangeLabel(res),
+	}
+	parsed, err := analysis.ParseResult([]byte(res.Report))
+	if err != nil {
+		return row
+	}
+	total := parsed.Summary.TotalSequences
+	ov := parsed.Summary.Overall
+	row.Sequences = total
+	row.Zero = catCell{ov.AllPerfect, dashPct(ov.AllPerfect, total), ""}
+	row.One = catCell{ov.MaxOneMismatch, dashPct(ov.MaxOneMismatch, total), ""}
+	row.Two = catCell{ov.TwoPlusMismatches, dashPct(ov.TwoPlusMismatches, total), ""}
+	row.None = catCell{ov.NoMatch, dashPct(ov.NoMatch, total), "mm-none"}
+	// Colour by the user's per-category zones. Only 0-mm is "higher is better";
+	// 1-mm and >1-mm are defect buckets, so higher is worse. "No match" stays
+	// neutral (grey).
+	row.Zero.Class = mmClass(row.Zero.Pct, user.Mm0Green, user.Mm0Warn, true)
+	row.One.Class = mmClass(row.One.Pct, user.Mm1Green, user.Mm1Warn, false)
+	row.Two.Class = mmClass(row.Two.Pct, user.Mm2Green, user.Mm2Warn, false)
+	return row
 }
 
 func dashPct(count, total int) float64 {

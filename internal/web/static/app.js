@@ -32,3 +32,15 @@
     syncMaster(master); // reflect any pre-checked state on load
   });
 })();
+
+// Print buttons: any element with a data-print attribute opens the browser's
+// print dialog (used by the PDF export view). Without JavaScript the user can
+// still print from the browser menu.
+(function () {
+  Array.prototype.forEach.call(
+    document.querySelectorAll("[data-print]"),
+    function (el) {
+      el.addEventListener("click", function () { window.print(); });
+    }
+  );
+})();

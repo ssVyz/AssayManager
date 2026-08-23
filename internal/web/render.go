@@ -8,32 +8,66 @@ import (
 	"time"
 )
 
-//go:embed templates/*.html
+//go:embed templates/*.html templates/partials/*.html
 var templateFS embed.FS
 
 //go:embed static
 var staticFS embed.FS
 
-// pages are the content templates; each is parsed together with the layout.
+// pages are the content templates rendered inside the normal app layout; each is
+// parsed together with the layout and the shared partials.
 var pages = []string{
 	"login", "register", "dashboard", "profile",
 	"assays_list", "assay_form", "assay_structured", "assay_view", "assay_history",
 	"run", "scheduled", "results_list", "results_delete_confirm", "result_view",
 }
 
+// printPages render inside a standalone print layout (no app chrome) instead of
+// the normal layout — they are meant to be exported to PDF via the browser.
+var printPages = []string{"results_report"}
+
+// partials are shared template files (each only defines named sub-templates) that
+// are parsed into every page so any page can invoke them.
+var partials = []string{"templates/partials/result_detail.html"}
+
 func parseTemplates() (map[string]*template.Template, error) {
 	funcs := template.FuncMap{"fmtTime": fmtTime, "modList": modList}
-	m := make(map[string]*template.Template, len(pages))
-	for _, p := range pages {
-		t, err := template.New("layout.html").Funcs(funcs).
-			ParseFS(templateFS, "templates/layout.html", "templates/"+p+".html")
+	m := make(map[string]*template.Template, len(pages)+len(printPages))
+	parse := func(root, page string) error {
+		files := append([]string{"templates/" + root}, partials...)
+		files = append(files, "templates/"+page+".html")
+		t, err := template.New(root).Funcs(funcs).ParseFS(templateFS, files...)
 		if err != nil {
+			return err
+		}
+		m[page] = t
+		return nil
+	}
+	for _, p := range pages {
+		if err := parse("layout.html", p); err != nil {
 			return nil, err
 		}
-		m[p] = t
+	}
+	for _, p := range printPages {
+		if err := parse("print_layout.html", p); err != nil {
+			return nil, err
+		}
 	}
 	return m, nil
 }
+
+// rootLayout maps each page to the name of its root (layout) template, so render
+// executes the correct outer document.
+var rootLayout = func() map[string]string {
+	m := make(map[string]string)
+	for _, p := range pages {
+		m[p] = "layout.html"
+	}
+	for _, p := range printPages {
+		m[p] = "print_layout.html"
+	}
+	return m
+}()
 
 // pageData is the template context shared by every page.
 type pageData struct {
@@ -66,8 +100,12 @@ func (s *Server) render(w http.ResponseWriter, status int, page string, pd pageD
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	root := rootLayout[page]
+	if root == "" {
+		root = "layout.html"
+	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "layout.html", pd); err != nil {
+	if err := t.ExecuteTemplate(&buf, root, pd); err != nil {
 		s.log.Error("render failed", "page", page, "err", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -95,6 +133,7 @@ var flashes = map[string]struct{ Kind, Text string }{
 	"export_none":      {"err", "Select at least one assay to export."},
 	"results_deleted":  {"ok", "Selected results deleted."},
 	"delete_none":      {"err", "Select at least one result to delete."},
+	"report_none":      {"err", "Select at least one result to export."},
 	"import_nofile":    {"err", "Choose a file to import."},
 	"import_bad":       {"err", "Could not read that file as an assay export (expected JSON or YAML with an 'assays' list)."},
 	"batch_none":       {"err", "Select at least one eligible assay to run."},

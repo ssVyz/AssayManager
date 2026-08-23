@@ -9,6 +9,23 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.10] - 2026-08-23
+
+### Added
+- PDF export of check results. Select one or more runs on the Check results page
+  and click "Export PDF" to open a print-optimised report in a new tab, then use
+  the browser's "Save as PDF" (A4 portrait). The report opens with a cover that
+  states the export date and lists the exported runs with a mismatch sneak-peek
+  (the same summary shown on the dashboard), followed by a page break and then the
+  full detailed view of each run in sequence, one per page. No new dependency —
+  the report is server-rendered HTML with a print stylesheet.
+
+### Changed
+- The result detail view (metadata, summary tiles, mismatch distribution, overall
+  and pattern tables) moved into a shared template partial so the on-screen result
+  page and the PDF report render from one source. On the single-result page the
+  Downloads links now sit just below the heading, above the run metadata.
+
 ## [0.3.9] - 2026-08-23
 
 ### Added

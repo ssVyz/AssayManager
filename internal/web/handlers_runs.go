@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -648,6 +649,65 @@ func (s *Server) handleResultsDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/results?msg=results_deleted", http.StatusSeeOther)
+}
+
+// reportData backs the printable PDF report: an export timestamp, the cover
+// sneak-peek rows, and the full per-result detail in the same order.
+type reportData struct {
+	ExportedAt time.Time
+	Cover      []dashboardRunRow
+	Details    []resultViewData
+}
+
+// handleResultsReport renders a print-optimised page bundling the selected runs:
+// a cover listing them with a mismatch sneak-peek, then each run's detailed view.
+// It is read-only (GET) and meant to be opened in a new tab and saved to PDF via
+// the browser's print dialog.
+func (s *Server) handleResultsReport(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+
+	ids := parseIDs(r.URL.Query()["id"])
+	if len(ids) == 0 {
+		http.Redirect(w, r, "/results?msg=report_none", http.StatusSeeOther)
+		return
+	}
+
+	var results []store.Result
+	for _, id := range ids {
+		res, err := s.store.ResultByID(user.ID, id)
+		if errors.Is(err, store.ErrNotFound) {
+			continue // silently drop ids not owned by this user
+		}
+		if err != nil {
+			s.serverError(w, "load result", err)
+			return
+		}
+		results = append(results, res)
+	}
+	if len(results) == 0 {
+		http.Redirect(w, r, "/results?msg=report_none", http.StatusSeeOther)
+		return
+	}
+	// Newest first, matching the results list order.
+	sort.Slice(results, func(i, j int) bool { return results[i].StartedAt.After(results[j].StartedAt) })
+
+	cover := make([]dashboardRunRow, 0, len(results))
+	details := make([]resultViewData, 0, len(results))
+	for _, res := range results {
+		cover = append(cover, buildRunRow(user, res))
+		vd := resultViewData{Result: res}
+		if res.Report != "" {
+			if parsed, perr := analysis.ParseResult([]byte(res.Report)); perr == nil {
+				v := parsed.Table()
+				vd.View = &v
+			}
+		}
+		details = append(details, vd)
+	}
+
+	pd := s.page(r, "results", "Results report")
+	pd.Data = reportData{ExportedAt: time.Now(), Cover: cover, Details: details}
+	s.render(w, http.StatusOK, "results_report", pd)
 }
 
 // parseIDs converts raw form id values to int64, dropping any that don't parse.

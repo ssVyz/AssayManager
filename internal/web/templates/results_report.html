@@ -1,0 +1,35 @@
+{{define "content"}}
+<section class="reportcover">
+  <h1>Assay check results</h1>
+  <p class="muted">Exported {{fmtTime .Data.ExportedAt}} · {{len .Data.Details}} result{{if ne (len .Data.Details) 1}}s{{end}}</p>
+
+  <table class="grid">
+    <thead><tr>
+      <th>Assay</th><th>Run</th><th>Date range</th><th>Sequences</th>
+      <th>0 mm</th><th>1 mm</th><th>&gt;1 mm</th><th>No match</th>
+    </tr></thead>
+    <tbody>
+    {{range .Data.Cover}}
+      <tr>
+        <td><a href="#run-{{.ID}}">{{.AssayName}} {{.AssayVersion}}</a></td>
+        <td>{{fmtTime .When}}</td>
+        <td>{{.DateRange}}</td>
+        <td>{{.Sequences}}</td>
+        <td class="{{.Zero.Class}}">{{printf "%.1f" .Zero.Pct}}%</td>
+        <td class="{{.One.Class}}">{{printf "%.1f" .One.Pct}}%</td>
+        <td class="{{.Two.Class}}">{{printf "%.1f" .Two.Pct}}%</td>
+        <td class="{{.None.Class}}">{{printf "%.1f" .None.Pct}}%</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  <p class="muted small">Percentages of sequences by worst-category mismatch. Cell colours follow your profile thresholds.</p>
+</section>
+
+{{range .Data.Details}}
+<section class="result-detail" id="run-{{.Result.ID}}">
+  <h2 class="detail-title">Run #{{.Result.ID}} — {{.Result.AssayName}} {{.Result.AssayVersion}}</h2>
+  {{template "result_detail" .}}
+</section>
+{{end}}
+{{end}}
