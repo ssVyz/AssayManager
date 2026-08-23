@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"sort"
+	"strings"
 )
 
 // NewRun describes an analysis run being started (the reference source and any
@@ -70,9 +71,38 @@ func (s *Store) FailStaleRuns(errMsg string) (int64, error) {
 	return res.RowsAffected()
 }
 
-// ListResults returns a user's runs, newest first.
+// ResultFilter narrows a results listing. A zero-valued field means "no
+// constraint". FromUTC and ToUTC are RFC3339 timestamps compared against
+// started_at (when the check was performed); the range is half-open
+// [FromUTC, ToUTC).
+type ResultFilter struct {
+	AssayName string
+	FromUTC   string
+	ToUTC     string
+}
+
+// ListResults returns all of a user's runs, newest first.
 func (s *Store) ListResults(ownerID int64) ([]Result, error) {
-	rows, err := s.db.Query(resultCols+` WHERE owner_id = ?`, ownerID)
+	return s.ListResultsFiltered(ownerID, ResultFilter{})
+}
+
+// ListResultsFiltered returns a user's runs matching the filter, newest first.
+func (s *Store) ListResultsFiltered(ownerID int64, f ResultFilter) ([]Result, error) {
+	q := resultCols + ` WHERE owner_id = ?`
+	args := []any{ownerID}
+	if f.AssayName != "" {
+		q += ` AND assay_name = ?`
+		args = append(args, f.AssayName)
+	}
+	if f.FromUTC != "" {
+		q += ` AND started_at >= ?`
+		args = append(args, f.FromUTC)
+	}
+	if f.ToUTC != "" {
+		q += ` AND started_at < ?`
+		args = append(args, f.ToUTC)
+	}
+	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +121,48 @@ func (s *Store) ListResults(ownerID int64) ([]Result, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].StartedAt.After(out[j].StartedAt) })
 	return out, nil
+}
+
+// ResultAssayNames returns the distinct assay names present in the owner's runs,
+// sorted, for populating the results filter dropdown.
+func (s *Store) ResultAssayNames(ownerID int64) ([]string, error) {
+	rows, err := s.db.Query(
+		`SELECT DISTINCT assay_name FROM results WHERE owner_id = ? ORDER BY assay_name`, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// DeleteResults permanently deletes the given runs, scoped to the owner so a
+// user can only remove their own. Each run's stored artifacts are dropped via
+// the result_artifacts foreign-key cascade. Returns the number of runs deleted.
+func (s *Store) DeleteResults(ownerID int64, ids []int64) (int64, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	ph := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, ownerID)
+	for i, id := range ids {
+		ph[i] = "?"
+		args = append(args, id)
+	}
+	res, err := s.db.Exec(
+		`DELETE FROM results WHERE owner_id = ? AND id IN (`+strings.Join(ph, ",")+`)`, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // ResultByID returns a single run, scoped to the owner.

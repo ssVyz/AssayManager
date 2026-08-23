@@ -553,19 +553,139 @@ type downloadLink struct {
 	Label string
 }
 
+// resultsListData backs the Check results page: the (optionally filtered) runs
+// plus the current filter selection echoed back into the form controls.
+type resultsListData struct {
+	Results     []store.Result
+	AssayNames  []string // distinct assay names, for the filter dropdown
+	FilterAssay string
+	FilterFrom  string // YYYY-MM-DD, as typed
+	FilterTo    string // YYYY-MM-DD, as typed
+	HasFilter   bool
+}
+
 func (s *Server) handleResultsList(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r.Context())
-	results, err := s.store.ListResults(user.ID)
+
+	q := r.URL.Query()
+	filterAssay := strings.TrimSpace(q.Get("assay"))
+	fromStr := strings.TrimSpace(q.Get("from"))
+	toStr := strings.TrimSpace(q.Get("to"))
+
+	f := store.ResultFilter{AssayName: filterAssay}
+	if b, ok := dayStartUTC(fromStr); ok {
+		f.FromUTC = b
+	}
+	if b, ok := dayEndExclusiveUTC(toStr); ok {
+		f.ToUTC = b
+	}
+
+	results, err := s.store.ListResultsFiltered(user.ID, f)
 	if err != nil {
 		s.serverError(w, "list results", err)
 		return
 	}
+	names, err := s.store.ResultAssayNames(user.ID)
+	if err != nil {
+		s.serverError(w, "result assay names", err)
+		return
+	}
+
 	pd := s.page(r, "results", "Check results")
 	if txt, kind := runBatchSummaryFlash(r); txt != "" {
 		pd.Flash, pd.FlashKind = txt, kind
 	}
-	pd.Data = results
+	pd.Data = resultsListData{
+		Results:     results,
+		AssayNames:  names,
+		FilterAssay: filterAssay,
+		FilterFrom:  fromStr,
+		FilterTo:    toStr,
+		HasFilter:   filterAssay != "" || f.FromUTC != "" || f.ToUTC != "",
+	}
 	s.render(w, http.StatusOK, "results_list", pd)
+}
+
+// handleResultsDelete removes the selected runs. It is a two-step action: the
+// first POST (from the results list) renders a confirmation page listing what
+// will be removed; that page posts back with confirm=1 to actually delete.
+// Deletion is permanent and also drops each run's stored artifacts.
+func (s *Server) handleResultsDelete(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r.Context())
+
+	ids := parseIDs(r.PostForm["id"])
+	if len(ids) == 0 {
+		http.Redirect(w, r, "/results?msg=delete_none", http.StatusSeeOther)
+		return
+	}
+
+	if r.PostFormValue("confirm") != "1" {
+		// Load the selected runs (owner-scoped) to show exactly what will go.
+		var sel []store.Result
+		for _, id := range ids {
+			res, err := s.store.ResultByID(user.ID, id)
+			if errors.Is(err, store.ErrNotFound) {
+				continue // silently drop ids not owned by this user
+			}
+			if err != nil {
+				s.serverError(w, "load result", err)
+				return
+			}
+			sel = append(sel, res)
+		}
+		if len(sel) == 0 {
+			http.Redirect(w, r, "/results?msg=delete_none", http.StatusSeeOther)
+			return
+		}
+		pd := s.page(r, "results", "Delete results")
+		pd.Data = sel
+		s.render(w, http.StatusOK, "results_delete_confirm", pd)
+		return
+	}
+
+	if _, err := s.store.DeleteResults(user.ID, ids); err != nil {
+		s.serverError(w, "delete results", err)
+		return
+	}
+	http.Redirect(w, r, "/results?msg=results_deleted", http.StatusSeeOther)
+}
+
+// parseIDs converts raw form id values to int64, dropping any that don't parse.
+func parseIDs(raw []string) []int64 {
+	var ids []int64
+	for _, s := range raw {
+		if id, err := strconv.ParseInt(s, 10, 64); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// dayStartUTC parses a YYYY-MM-DD date in the server's local time (matching the
+// local times shown in the UI) and returns the RFC3339 UTC timestamp for the
+// start of that day. ok is false for empty or unparseable input.
+func dayStartUTC(s string) (string, bool) {
+	if s == "" {
+		return "", false
+	}
+	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	if err != nil {
+		return "", false
+	}
+	return t.UTC().Format(time.RFC3339), true
+}
+
+// dayEndExclusiveUTC is like dayStartUTC but returns the start of the following
+// day, for use as an exclusive upper bound so the whole selected day is included.
+func dayEndExclusiveUTC(s string) (string, bool) {
+	if s == "" {
+		return "", false
+	}
+	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	if err != nil {
+		return "", false
+	}
+	return t.AddDate(0, 0, 1).UTC().Format(time.RFC3339), true
 }
 
 func (s *Server) handleResultView(w http.ResponseWriter, r *http.Request) {

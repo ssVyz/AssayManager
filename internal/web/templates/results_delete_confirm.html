@@ -1,0 +1,35 @@
+{{define "content"}}
+<div class="pagehead">
+  <h1>Delete results?</h1>
+  <a class="btn secondary" href="/results">Cancel</a>
+</div>
+
+<div class="flash err">
+  You are about to permanently delete {{len .Data}} result{{if ne (len .Data) 1}}s{{end}}.
+  This cannot be undone, and each run's stored downloads (Excel, text, JSON) are removed with it.
+</div>
+
+<table class="grid">
+  <thead><tr><th>Assay</th><th>Version</th><th>Status</th><th>Started</th></tr></thead>
+  <tbody>
+  {{range .Data}}
+    <tr>
+      <td>{{.AssayName}}</td>
+      <td>{{.AssayVersion}}</td>
+      <td><span class="status {{.Status}}">{{.Status}}</span></td>
+      <td>{{fmtTime .StartedAt}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+
+<form method="post" action="/results/delete" class="danger-zone">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <input type="hidden" name="confirm" value="1">
+  {{range .Data}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
+  <div class="actions">
+    <button type="submit" class="btn danger">Delete permanently</button>
+    <a class="btn secondary" href="/results">Cancel</a>
+  </div>
+</form>
+{{end}}

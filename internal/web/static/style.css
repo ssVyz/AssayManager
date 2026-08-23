@@ -134,6 +134,11 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 .mm-bad  { color: var(--err); font-weight: 600; }
 .mm-none { color: var(--muted); }
 
+/* Results page filter (assay + performed-on date range). */
+.resultsfilter { display: flex; align-items: flex-end; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
+.resultsfilter label { display: inline-flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
+.resultsfilter select, .resultsfilter input[type=date] { width: auto; }
+
 /* Dashboard runs filter (Recent / specific assay). */
 .dashfilter { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
 .dashfilter .dashfilter-modes { display: inline-flex; gap: .75rem; }

@@ -9,6 +9,21 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.9] - 2026-08-23
+
+### Added
+- The Check results page now supports selecting runs with per-row checkboxes and
+  a "select all" header box (the same pattern used on the Assays page).
+- "Delete selected" removes runs — the first user way to delete results. It is a
+  two-step action: selecting runs and clicking delete opens a confirmation page
+  that lists exactly what will be removed and warns that deletion is permanent
+  (and also drops each run's stored downloads); a final confirm actually deletes.
+  Deletion is owner-scoped, and stored artifacts are cleaned up via the existing
+  `result_artifacts` foreign-key cascade.
+- A filter on the Check results page: narrow the list by assay and/or by the date
+  range the check was performed (inclusive of both endpoints). Date bounds are
+  interpreted in the server's local time to match the times shown in the table.
+
 ## [0.3.8] - 2026-08-20
 
 ### Fixed

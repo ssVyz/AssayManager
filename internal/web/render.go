@@ -18,7 +18,7 @@ var staticFS embed.FS
 var pages = []string{
 	"login", "register", "dashboard", "profile",
 	"assays_list", "assay_form", "assay_structured", "assay_view", "assay_history",
-	"run", "scheduled", "results_list", "result_view",
+	"run", "scheduled", "results_list", "results_delete_confirm", "result_view",
 }
 
 func parseTemplates() (map[string]*template.Template, error) {
@@ -93,6 +93,8 @@ var flashes = map[string]struct{ Kind, Text string }{
 	"bad_profile":      {"err", "Check your settings: BLAST coverage and identity in 0–1, hitlist a positive integer, recent-runs a whole number 1–50, and colour thresholds in 0–100 with green on the correct side of yellow for each category."},
 	"not_found":        {"err", "That item was not found."},
 	"export_none":      {"err", "Select at least one assay to export."},
+	"results_deleted":  {"ok", "Selected results deleted."},
+	"delete_none":      {"err", "Select at least one result to delete."},
 	"import_nofile":    {"err", "Choose a file to import."},
 	"import_bad":       {"err", "Could not read that file as an assay export (expected JSON or YAML with an 'assays' list)."},
 	"batch_none":       {"err", "Select at least one eligible assay to run."},
