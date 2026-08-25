@@ -14,12 +14,14 @@
 
 {{with .View}}
   <h2>Summary</h2>
-  <div class="tiles">
-    <div class="tile"><span class="num">{{.Total}}</span><span class="lbl">Sequences</span></div>
-    <div class="tile"><span class="num">{{.MeetThresholds}}</span><span class="lbl">Meet thresholds</span></div>
-    <div class="tile"><span class="num">{{.ValidAmplicon}}</span><span class="lbl">Valid amplicon</span></div>
-    <div class="tile"><span class="num">{{.FailedAmplicon}}</span><span class="lbl">Failed amplicon</span></div>
-  </div>
+  <table class="grid">
+    <tbody>
+      <tr><td>Sequences</td><td>{{.Total}}</td></tr>
+      <tr><td>Meet thresholds</td><td>{{.MeetThresholds}}</td></tr>
+      <tr><td>Valid amplicon</td><td>{{.ValidAmplicon}}</td></tr>
+      <tr><td>Failed amplicon</td><td>{{.FailedAmplicon}}</td></tr>
+    </tbody>
+  </table>
 
   <h2>Mismatch distribution</h2>
   <p class="muted">Best oligo per class, per sequence.</p>

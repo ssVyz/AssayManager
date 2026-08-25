@@ -9,6 +9,13 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.11] - 2026-08-25
+
+### Changed
+- The result "Summary" section (on the single-result view and in the PDF report)
+  now renders as a plain label/value table instead of four card-like tiles, for
+  consistency with the surrounding distribution and overall tables.
+
 ## [0.3.10] - 2026-08-23
 
 ### Added
