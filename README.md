@@ -14,6 +14,7 @@ kept thin so it can later back a JSON API.
 | `internal/auth` | bcrypt password hashing, in-memory sessions, CSRF tokens. |
 | `internal/assayparser` | Parses/validates assay definitions, converts JSON⇄YAML, and derives clean sequences + modification lists from oligo sequences. |
 | `internal/analysis` | Runs the external `inclusivity_check_blast` tool as a subprocess and parses/serves its output. |
+| `internal/backup` | Ops-level periodic SQLite snapshots into a backup directory (configured via `backup.ini`; off by default). Snapshots to a local temp file and copies from there, so it works on network mounts. |
 | `internal/web` | Routing, middleware (session, auth, CSRF, upload limits), handlers, embedded HTML templates + CSS. |
 | `assets/` | The compiled `inclusivity_check_blast` binary (not committed). |
 
@@ -35,6 +36,18 @@ kept thin so it can later back a JSON API.
   `AM_NCBI_EMAIL`. Concurrent runs are capped by `AM_MAX_CONCURRENT_RUNS`
   (default 1); since a run holds its slot for its whole duration, this also bounds
   how many BLAST/NCBI queries run at once.
+- **Results.** Completed and in-progress checks are listed on the *Check results*
+  page, filterable by assay and by the date the check was performed. Selected runs
+  can be deleted — permanently, via a confirmation step that also removes their
+  stored Excel/text/JSON downloads — or exported to a **PDF report**: a
+  print-optimised page (opened in a new tab and saved from the browser's print
+  dialog, A4 portrait) with a cover that lists the runs and their mismatch summary,
+  a page break, then each run's full detailed view in sequence.
+- **Backups** are an optional ops feature, off by default and not exposed in the
+  UI. On startup the server reads (and, if absent, generates) a `backup.ini`
+  beside the database; when enabled it takes periodic snapshots into a backup
+  directory, tolerating an unavailable destination such as an unmounted network
+  volume.
 - **No migrations yet:** delete the DB file to reset the schema.
 - **Configuration** comes from flags and `AM_*` environment variables. For
   convenience, a gitignored `.env` file in the working directory is also read at
