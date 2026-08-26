@@ -9,6 +9,18 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.12] - 2026-08-26
+
+### Added
+- Containerisation: a minimal two-stage `Dockerfile` (plus `.dockerignore`). The
+  build stage compiles the server into a static binary and writes a `.env` file
+  from a required `NCBI_EMAIL` build arg; the runtime stage is a
+  `distroless/static-debian12` image (no shell, ~2 MB) holding the server, the
+  prebuilt static `inclusivity_check_blast` Linux binary (copied from `assets/`
+  and renamed), and the `.env`. The SQLite database, log and backups are written
+  to the working directory as usual, persisting across container stop/start (but
+  not across removal). No new Go dependencies.
+
 ## [0.3.11] - 2026-08-25
 
 ### Changed

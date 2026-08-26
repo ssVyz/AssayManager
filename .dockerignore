@@ -1,0 +1,29 @@
+# Keep the Docker build context small and free of local state.
+# Do NOT add go.mod, go.sum, *.go, internal/, or
+# assets/inclusivity_check_blast_lin here — the build needs them.
+
+# Version control & container files
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+# Local database and runtime state (must never enter the image)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.log
+logs/
+*.ini
+
+# Local dotenv (the image generates its own from the NCBI_EMAIL build arg)
+.env
+
+# Windows build of the analysis tool (the image uses the linux binary)
+assets/*.exe
+
+# Editor / agent tooling
+.claude/
+.idea/
+.vscode/
