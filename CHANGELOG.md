@@ -9,6 +9,16 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.14] - 2026-08-28
+
+### Changed
+- The pattern-detail selector on the single-result view is now a one-click
+  simple/full toggle (two plain links, current mode highlighted) instead of a
+  dropdown needing a separate "Show" submit — switching a result's pattern table
+  takes one click and still works without JavaScript.
+- The selector in the results list is labelled "PDF pattern", since it applies to
+  the exported report only; per-result switching happens in the result view.
+
 ## [0.3.13] - 2026-08-28
 
 ### Added

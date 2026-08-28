@@ -41,7 +41,7 @@
     </tbody>
   </table>
   <div class="actions">
-    <label class="patternpick">Pattern
+    <label class="patternpick">PDF pattern
       <select name="pattern" aria-label="Pattern detail in the report">
         <option value="simple"{{if ne .Data.PatternMode "full"}} selected{{end}}>simple</option>
         <option value="full"{{if eq .Data.PatternMode "full"}} selected{{end}}>full</option>
@@ -50,7 +50,7 @@
     <button type="submit" formmethod="get" formaction="/results/report" formtarget="_blank">Export PDF</button>
     <button type="submit" class="btn danger">Delete selected</button>
   </div>
-  <p class="muted">Select one or more results. “Export PDF” opens a printable report in a new tab; “Pattern” chooses whether its pattern tables show the per-class verdict (simple) or the full per-oligo signatures (full). Deleting is permanent and removes the run's stored downloads — you will be asked to confirm.</p>
+  <p class="muted">Select one or more results. “Export PDF” opens a printable report in a new tab; “PDF pattern” chooses whether the report's pattern tables show the per-class verdict (simple) or the full per-oligo signatures (full). Deleting is permanent and removes the run's stored downloads — you will be asked to confirm.</p>
 </form>
 {{else if .Data.HasFilter}}
 <p class="muted">No results match this filter. <a href="/results">Clear filter</a>.</p>

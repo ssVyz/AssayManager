@@ -139,6 +139,16 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 .resultsfilter label { display: inline-flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
 .resultsfilter select, .resultsfilter input[type=date] { width: auto; }
 
+/* Pattern-detail toggle (simple/full) above a pattern table: one click each way,
+   the current mode filled in. Plain links, so it works without JavaScript. */
+.patterntoggle { display: inline-flex; align-items: center; gap: .5rem; margin: 0 0 .6rem;
+  font-size: .85rem; color: var(--muted); }
+.patterntoggle .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; }
+.patterntoggle .seg > * { padding: .2rem .7rem; background: #fff; color: var(--blue-700); }
+.patterntoggle .seg > a:hover { background: var(--blue-050); text-decoration: none; }
+.patterntoggle .seg > .on { background: var(--blue-500); color: #fff; font-weight: 600; }
+
 /* Pattern-detail selector (simple/full) next to a pattern table or the export. */
 .patternpick { display: inline-flex; align-items: center; gap: .4rem; margin: 0 0 .5rem;
   font-size: .85rem; color: var(--muted); }

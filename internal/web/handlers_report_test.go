@@ -138,11 +138,12 @@ func TestResultViewPatternSimpleDefault(t *testing.T) {
 
 	for _, want := range []string{
 		"Mismatch patterns",
-		">Forward primer(s)<",              // class column heading
-		">Reverse primer(s)<",              //
-		`<td class="cls">perfect</td>`,     // forward: no mismatches
-		`<td class="cls">1 mm</td>`,        // reverse: one mismatch
-		`<option value="simple" selected>`, // the picker reflects the mode
+		">Forward primer(s)<",                                // class column heading
+		">Reverse primer(s)<",                                //
+		`<td class="cls">perfect</td>`,                       // forward: no mismatches
+		`<td class="cls">1 mm</td>`,                          // reverse: one mismatch
+		`<span class="on" aria-current="true">simple</span>`, // toggle marks the mode
+		`href="/results/1?pattern=full"`,                     // ...and links to the other
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("simple pattern view missing %q", want)
@@ -168,8 +169,9 @@ func TestResultViewPatternFull(t *testing.T) {
 	for _, want := range []string{
 		`<td class="mono">........(fwd)</td>`, // full signature per oligo
 		`<td class="mono">......A.(rev)</td>`,
-		"ATGCATGC",                       // the oligo sequence sub-heading
-		`<option value="full" selected>`, // the picker reflects the mode
+		"ATGCATGC",                                         // the oligo sequence sub-heading
+		`<span class="on" aria-current="true">full</span>`, // toggle marks the mode
+		`<a href="/results/1">simple</a>`,                  // ...and links back
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("full pattern view missing %q", want)
@@ -204,8 +206,8 @@ func TestResultsReportPatternMode(t *testing.T) {
 		t.Errorf("collapsed report should not contain signature cells")
 	}
 	// The report has no picker of its own; the mode comes from the export URL.
-	if strings.Contains(simple, `class="patternpick`) {
-		t.Errorf("report should not render the pattern picker")
+	if strings.Contains(simple, `class="patterntoggle`) {
+		t.Errorf("report should not render the pattern toggle")
 	}
 
 	full := get("/results/report?id=" + itoa(runID) + "&pattern=full")
