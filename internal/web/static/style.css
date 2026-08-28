@@ -138,6 +138,11 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 .resultsfilter { display: flex; align-items: flex-end; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
 .resultsfilter label { display: inline-flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
 .resultsfilter select, .resultsfilter input[type=date] { width: auto; }
+/* Filter controls and the export/delete actions share one wrapping row above the
+   list, so they stay reachable however long the list gets. */
+.resultsbar { display: flex; align-items: flex-end; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
+.resultsbar .resultsfilter { margin: 0; }
+.resultsactions { align-items: flex-end; }
 
 /* Pattern-detail toggle (simple/full) above a pattern table: one click each way,
    the current mode filled in. Plain links, so it works without JavaScript. */

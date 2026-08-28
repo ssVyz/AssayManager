@@ -9,6 +9,16 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.15] - 2026-08-28
+
+### Changed
+- On the "Check results" list, the "PDF pattern" selector, "Export PDF" and
+  "Delete selected" moved from below the table into the filter row above it, so
+  they stay reachable however long the list is. They remain owned by the table's
+  form (HTML `form="results-form"`), so a submission still carries the ticked
+  rows and the CSRF token; the explanatory line moved up with them. The controls
+  are omitted entirely when the list is empty.
+
 ## [0.3.14] - 2026-08-28
 
 ### Changed

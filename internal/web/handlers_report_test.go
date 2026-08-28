@@ -216,6 +216,48 @@ func TestResultsReportPatternMode(t *testing.T) {
 	}
 }
 
+// TestResultsListActionsAboveTable pins the results-list toolbar: the export and
+// delete controls render above the table (so they stay reachable on a long list)
+// while still being owned by the table's form via form="results-form" — that
+// association is what carries the ticked ids and the CSRF token.
+func TestResultsListActionsAboveTable(t *testing.T) {
+	srv, cookie, _ := reportTestServer(t)
+	get := func(url string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, url, nil)
+		req.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, want 200", url, w.Code)
+		}
+		return w.Body.String()
+	}
+
+	body := get("/results")
+	if !strings.Contains(body, `id="results-form"`) {
+		t.Fatal("results list is missing the form id the actions refer to")
+	}
+	if n := strings.Count(body, `form="results-form"`); n != 3 {
+		t.Errorf("%d controls associated with the results form, want 3 (pattern, export, delete)", n)
+	}
+	actions := strings.Index(body, `class="actions resultsactions"`)
+	table := strings.Index(body, `<table class="grid"`)
+	if actions < 0 || table < 0 || actions > table {
+		t.Errorf("actions at %d, table at %d: actions must render above the table", actions, table)
+	}
+	// The filter row and the actions share one bar, above the list.
+	if bar := strings.Index(body, `class="resultsbar"`); bar < 0 || bar > actions {
+		t.Errorf("actions must sit inside the filter bar (bar at %d, actions at %d)", bar, actions)
+	}
+
+	// With nothing to act on there are no export/delete controls at all.
+	empty := get("/results?assay=NoSuchAssay")
+	if strings.Contains(empty, `form="results-form"`) {
+		t.Error("empty results list should not render the export/delete actions")
+	}
+}
+
 // getBody requests a single-result URL (with a %s placeholder for the run id, or
 // a plain "/results/" prefix) and returns the rendered body.
 func getBody(t *testing.T, urlFmt string) string {
