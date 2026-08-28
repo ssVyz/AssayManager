@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -41,8 +42,8 @@ const sampleReportJSON = `{
     "oligo_stats": []
   },
   "patterns": [
-    {"rank": 1, "signature": "0|0", "count": 6, "percentage": 60.0,
-     "cumulative_percentage": 60.0, "total_mismatches": 0, "matched_fwd": 6,
+    {"rank": 1, "signature": "........(fwd) || ......A.(rev)", "count": 6, "percentage": 60.0,
+     "cumulative_percentage": 60.0, "total_mismatches": 1, "matched_fwd": 6,
      "matched_rev": 6, "matched_probe": 0, "amplicon_length": 120, "member_ids": ["s1", "s2"]}
   ],
   "per_sequence": []
@@ -128,6 +129,108 @@ func TestResultsReportNoSelection(t *testing.T) {
 	if loc := w.Header().Get("Location"); !strings.Contains(loc, "report_none") {
 		t.Errorf("redirect = %q, want it to carry report_none", loc)
 	}
+}
+
+// TestResultViewPatternSimpleDefault checks the single-result view defaults to
+// the collapsed pattern table: one verdict per oligo class, no per-oligo columns.
+func TestResultViewPatternSimpleDefault(t *testing.T) {
+	body := getBody(t, "/results/")
+
+	for _, want := range []string{
+		"Mismatch patterns",
+		">Forward primer(s)<",              // class column heading
+		">Reverse primer(s)<",              //
+		`<td class="cls">perfect</td>`,     // forward: no mismatches
+		`<td class="cls">1 mm</td>`,        // reverse: one mismatch
+		`<option value="simple" selected>`, // the picker reflects the mode
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("simple pattern view missing %q", want)
+		}
+	}
+	// The pattern table shows no signature cells or per-oligo sub-headings; the
+	// signature itself still appears in the (collapsed) raw-JSON block.
+	for _, unwanted := range []string{
+		`<td class="mono">`,
+		`<span class="muted mono small">`,
+	} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("simple pattern view should not contain %q", unwanted)
+		}
+	}
+}
+
+// TestResultViewPatternFull renders the unabridged per-oligo pattern table when
+// ?pattern=full is requested.
+func TestResultViewPatternFull(t *testing.T) {
+	body := getBody(t, "/results/%s?pattern=full")
+
+	for _, want := range []string{
+		`<td class="mono">........(fwd)</td>`, // full signature per oligo
+		`<td class="mono">......A.(rev)</td>`,
+		"ATGCATGC",                       // the oligo sequence sub-heading
+		`<option value="full" selected>`, // the picker reflects the mode
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("full pattern view missing %q", want)
+		}
+	}
+	if strings.Contains(body, `class="cls"`) {
+		t.Errorf("full pattern view should not contain collapsed class cells")
+	}
+}
+
+// TestResultsReportPatternMode carries the pattern-detail choice into the
+// printable report, which defaults to the collapsed view like the web page.
+func TestResultsReportPatternMode(t *testing.T) {
+	srv, cookie, runID := reportTestServer(t)
+	get := func(url string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, url, nil)
+		req.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: status = %d, want 200", url, w.Code)
+		}
+		return w.Body.String()
+	}
+
+	simple := get("/results/report?id=" + itoa(runID))
+	if !strings.Contains(simple, `<td class="cls">perfect</td>`) {
+		t.Errorf("report should default to the collapsed pattern table")
+	}
+	if strings.Contains(simple, `<td class="mono">`) {
+		t.Errorf("collapsed report should not contain signature cells")
+	}
+	// The report has no picker of its own; the mode comes from the export URL.
+	if strings.Contains(simple, `class="patternpick`) {
+		t.Errorf("report should not render the pattern picker")
+	}
+
+	full := get("/results/report?id=" + itoa(runID) + "&pattern=full")
+	if !strings.Contains(full, `<td class="mono">......A.(rev)</td>`) {
+		t.Errorf("report with pattern=full should contain full signatures")
+	}
+}
+
+// getBody requests a single-result URL (with a %s placeholder for the run id, or
+// a plain "/results/" prefix) and returns the rendered body.
+func getBody(t *testing.T, urlFmt string) string {
+	t.Helper()
+	srv, cookie, runID := reportTestServer(t)
+	url := "/results/" + itoa(runID)
+	if strings.Contains(urlFmt, "%s") {
+		url = fmt.Sprintf(urlFmt, itoa(runID))
+	}
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.AddCookie(cookie)
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET %s: status = %d, want 200; body: %s", url, w.Code, w.Body.String())
+	}
+	return w.Body.String()
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }

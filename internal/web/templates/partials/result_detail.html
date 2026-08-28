@@ -51,13 +51,26 @@
   </table>
 
   {{if .PatternRows}}
+  {{$full := eq $.PatternMode "full"}}
   <h2>Mismatch patterns</h2>
+  {{if $.PatternPicker}}
+  <form method="get" action="/results/{{$r.ID}}" class="patternpick no-print">
+    <label>Pattern
+      <select name="pattern" aria-label="Pattern detail">
+        <option value="simple"{{if not $full}} selected{{end}}>simple</option>
+        <option value="full"{{if $full}} selected{{end}}>full</option>
+      </select>
+    </label>
+    <button type="submit">Show</button>
+  </form>
+  {{end}}
+  <p class="muted">{{if $full}}Full alignment signature per oligo — “.” marks a match, a base or “-” a mismatch.{{else}}Best oligo per class: “perfect” means at least one oligo of that class matches without mismatches. Choose “full” (or the Excel download) for the per-oligo signatures.{{end}}</p>
   <div class="tablewrap">
-  <table class="grid patterns">
+  <table class="grid patterns{{if not $full}} simple{{end}}">
     <thead>
       <tr>
         <th>Pattern</th>
-        {{range .OligoCols}}<th>{{.ID}}<br><span class="muted mono small">{{.Seq}}</span></th>{{end}}
+        {{if $full}}{{range .OligoCols}}<th>{{.ID}}<br><span class="muted mono small">{{.Seq}}</span></th>{{end}}{{else}}{{range .ClassCols}}<th>{{.}}</th>{{end}}{{end}}
         <th>Count</th><th>%</th><th>Cumul %</th><th>Total mm</th><th>Fwd/Rev/Probe</th><th>Amplicon</th><th>Examples</th>
       </tr>
     </thead>
@@ -65,7 +78,7 @@
     {{range .PatternRows}}
       <tr>
         <td>{{.Num}}</td>
-        {{range .Cells}}<td class="mono">{{.}}</td>{{end}}
+        {{if $full}}{{range .Cells}}<td class="mono">{{.}}</td>{{end}}{{else}}{{range .ClassCells}}<td class="cls">{{.}}</td>{{end}}{{end}}
         <td>{{.Count}}</td>
         <td>{{printf "%.1f" .Percentage}}</td>
         <td>{{printf "%.1f" .Cumulative}}</td>

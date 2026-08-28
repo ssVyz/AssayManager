@@ -139,6 +139,13 @@ table.grid tbody tr:hover { background: #fbfcfe; }
 .resultsfilter label { display: inline-flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); }
 .resultsfilter select, .resultsfilter input[type=date] { width: auto; }
 
+/* Pattern-detail selector (simple/full) next to a pattern table or the export. */
+.patternpick { display: inline-flex; align-items: center; gap: .4rem; margin: 0 0 .5rem;
+  font-size: .85rem; color: var(--muted); }
+.patternpick select { width: auto; }
+.actions .patternpick { margin: 0; }
+table.patterns td.cls { white-space: nowrap; }
+
 /* Dashboard runs filter (Recent / specific assay). */
 .dashfilter { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin: 0 0 1rem; }
 .dashfilter .dashfilter-modes { display: inline-flex; gap: .75rem; }
@@ -207,6 +214,9 @@ body.printdoc { background: #fff; }
   /* The wide per-oligo pattern table: shrink so it fits A4 portrait width. */
   table.patterns { font-size: 7.5pt; width: 100%; }
   table.patterns th, table.patterns td { padding: .18rem .25rem; word-break: break-word; }
+  /* The collapsed (simple) pattern table is narrow enough to stay readable. */
+  table.patterns.simple { font-size: 9pt; }
+  table.patterns.simple td.cls { word-break: normal; }
 
   /* Long code/JSON blocks wrap instead of scrolling on paper. */
   pre.code { white-space: pre-wrap; word-break: break-word; background: #f4f4f4;

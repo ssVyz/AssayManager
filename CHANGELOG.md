@@ -9,6 +9,31 @@ The authoritative version lives in `main.go` (the `Version` constant) and must
 match the latest entry below. Every code change gets a patch bump and a new
 entry here.
 
+## [0.3.13] - 2026-08-28
+
+### Added
+- A **pattern-detail selector** for the mismatch-pattern table, on the web view
+  and in the printable report: `simple` (the new default) or `full`. In simple
+  mode the per-oligo signature columns are replaced by one verdict column per
+  oligo class — "Forward primer(s)", "Probe(s)", "Reverse primer(s)" — reading
+  `perfect`, `N mm` or `none`; the best oligo of a class wins, so a class counts
+  as a perfect match as soon as one of its oligos matches without mismatches.
+  Everything else about the table (pattern number, counts, percentages, total
+  mismatches, amplicon, examples) is unchanged, so rows still line up 1:1 with
+  the full view and the Excel workbook. This keeps the table readable for assays
+  with many oligos, where the full signatures wrapped or ran off the page.
+  `full` renders exactly what the table did before.
+  - The single-result view has a "Pattern" dropdown next to the table
+    (`?pattern=simple|full`); the results list has one next to "Export PDF" that
+    is carried into the report URL, so the PDF matches what was chosen.
+  - `analysis.ResultView` now carries both projections (`ClassCols` +
+    `PatternRow.ClassCells` alongside `OligoCols` + `PatternRow.Cells`). The
+    per-class mismatch counts are derived from the tool's signature strings
+    (every non-`.` character is a mismatch, as the tool counts them), because the
+    consolidated JSON has no per-class best-mismatch field.
+  - The downloadable outputs (xlsx, txt, JSON) are the analysis tool's own and
+    are untouched — they always contain the full pattern detail.
+
 ## [0.3.12] - 2026-08-26
 
 ### Added

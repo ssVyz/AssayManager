@@ -547,6 +547,29 @@ type resultViewData struct {
 	Result    store.Result
 	View      *analysis.ResultView // nil if the report is not structured JSON
 	Downloads []downloadLink
+	// PatternMode selects how the pattern table shows per-oligo detail:
+	// patternSimple (per-class verdicts) or patternFull (full signatures). It
+	// affects the web and print views only — the xlsx/txt/JSON downloads are the
+	// analysis tool's own output and always carry the full pattern.
+	PatternMode string
+	// PatternPicker renders the simple/full selector next to the pattern table
+	// (single-result view only; the multi-run report takes its mode from the URL).
+	PatternPicker bool
+}
+
+const (
+	patternSimple = "simple"
+	patternFull   = "full"
+)
+
+// patternMode reads the ?pattern= pattern-table selector. Anything other than an
+// explicit "full" — absent, empty or unrecognised — means the collapsed simple
+// view, which is the default everywhere.
+func patternMode(r *http.Request) string {
+	if r.URL.Query().Get("pattern") == patternFull {
+		return patternFull
+	}
+	return patternSimple
 }
 
 type downloadLink struct {
@@ -563,6 +586,7 @@ type resultsListData struct {
 	FilterFrom  string // YYYY-MM-DD, as typed
 	FilterTo    string // YYYY-MM-DD, as typed
 	HasFilter   bool
+	PatternMode string // pre-selection for the PDF export's pattern-detail select
 }
 
 func (s *Server) handleResultsList(w http.ResponseWriter, r *http.Request) {
@@ -603,6 +627,7 @@ func (s *Server) handleResultsList(w http.ResponseWriter, r *http.Request) {
 		FilterFrom:  fromStr,
 		FilterTo:    toStr,
 		HasFilter:   filterAssay != "" || f.FromUTC != "" || f.ToUTC != "",
+		PatternMode: patternMode(r),
 	}
 	s.render(w, http.StatusOK, "results_list", pd)
 }
@@ -691,11 +716,12 @@ func (s *Server) handleResultsReport(w http.ResponseWriter, r *http.Request) {
 	// Newest first, matching the results list order.
 	sort.Slice(results, func(i, j int) bool { return results[i].StartedAt.After(results[j].StartedAt) })
 
+	mode := patternMode(r)
 	cover := make([]dashboardRunRow, 0, len(results))
 	details := make([]resultViewData, 0, len(results))
 	for _, res := range results {
 		cover = append(cover, buildRunRow(user, res))
-		vd := resultViewData{Result: res}
+		vd := resultViewData{Result: res, PatternMode: mode}
 		if res.Report != "" {
 			if parsed, perr := analysis.ParseResult([]byte(res.Report)); perr == nil {
 				v := parsed.Table()
@@ -765,7 +791,7 @@ func (s *Server) handleResultView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vd := resultViewData{Result: res}
+	vd := resultViewData{Result: res, PatternMode: patternMode(r), PatternPicker: true}
 	if res.Report != "" {
 		if parsed, perr := analysis.ParseResult([]byte(res.Report)); perr == nil {
 			v := parsed.Table()

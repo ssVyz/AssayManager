@@ -198,6 +198,7 @@ type OligoCol struct {
 type PatternRow struct {
 	Num             int
 	Cells           []string // one per OligoCol (the per-oligo signature)
+	ClassCells      []string // one per ClassCol (the class's best-match verdict)
 	Count           int
 	Percentage      float64
 	Cumulative      float64
@@ -229,13 +230,17 @@ type OverallRow struct {
 
 // ResultView is a display-ready projection of a Result: the per-oligo pattern
 // table, per-class mismatch distribution (as percentages), and the overall
-// breakdown — matching the tool's Excel output.
+// breakdown — matching the tool's Excel output. Each pattern row carries both
+// projections of its per-oligo detail: the full signatures (Cells, one per
+// OligoCol) and the collapsed per-class verdicts (ClassCells, one per ClassCol);
+// the web layer picks one.
 type ResultView struct {
 	Total          int
 	MeetThresholds int
 	ValidAmplicon  int
 	FailedAmplicon int
 	OligoCols      []OligoCol
+	ClassCols      []string // oligo-class headings, in Cells/ClassCells order
 	PatternRows    []PatternRow
 	ClassDist      []DistRow
 	Overall        []OverallRow
@@ -259,15 +264,23 @@ func (r *Result) Table() ResultView {
 	np := len(r.Meta.Oligos.Probes)
 	nr := len(r.Meta.Oligos.ReversePrimers)
 
+	classCols := []string{"Forward primer(s)"}
+	if np > 0 {
+		classCols = append(classCols, "Probe(s)")
+	}
+	classCols = append(classCols, "Reverse primer(s)")
+
 	rows := make([]PatternRow, 0, len(r.Patterns))
 	for _, p := range r.Patterns {
 		amp := ""
 		if p.AmpliconLength != nil {
 			amp = strconv.Itoa(*p.AmpliconLength)
 		}
+		cells := splitSignature(p.Signature, nf, np, nr)
 		rows = append(rows, PatternRow{
 			Num:             p.Rank,
-			Cells:           splitSignature(p.Signature, nf, np, nr),
+			Cells:           cells,
+			ClassCells:      classCells(cells, nf, np, nr),
 			Count:           p.Count,
 			Percentage:      p.Percentage,
 			Cumulative:      p.CumulativePercentage,
@@ -301,6 +314,7 @@ func (r *Result) Table() ResultView {
 		ValidAmplicon:  r.Summary.SequencesWithValidAmplicon,
 		FailedAmplicon: r.Summary.SequencesFailedAmplicon,
 		OligoCols:      cols,
+		ClassCols:      classCols,
 		PatternRows:    rows,
 		ClassDist:      classDist,
 		Overall:        overall,
@@ -390,6 +404,77 @@ func splitSignature(signature string, numFwd, numProbes, numRev int) []string {
 	take(revSection, numRev)
 
 	return all
+}
+
+// classCells collapses a pattern's per-oligo signature cells into one verdict
+// per oligo class, in ClassCols order (forward, probes if any, reverse).
+func classCells(cells []string, numFwd, numProbes, numRev int) []string {
+	out := make([]string, 0, 3)
+	pos := 0
+	group := func(n int) {
+		end := pos + n
+		if end > len(cells) {
+			end = len(cells)
+		}
+		if pos > end {
+			pos = end
+		}
+		out = append(out, classLabel(cells[pos:end]))
+		pos = end
+	}
+
+	group(numFwd)
+	if numProbes > 0 {
+		group(numProbes)
+	}
+	group(numRev)
+	return out
+}
+
+// classLabel reduces one class's signature cells to a short verdict: the best
+// (fewest-mismatch) oligo of the class wins, so the class counts as a perfect
+// match as soon as any one of its oligos matches perfectly. "none" means no
+// oligo of the class matched at all.
+func classLabel(cells []string) string {
+	best := -1
+	for _, c := range cells {
+		mm, ok := signatureMismatches(c)
+		if !ok {
+			continue
+		}
+		if best < 0 || mm < best {
+			best = mm
+		}
+	}
+	switch {
+	case best < 0:
+		return "none"
+	case best == 0:
+		return "perfect"
+	default:
+		return strconv.Itoa(best) + " mm"
+	}
+}
+
+// signatureMismatches counts the mismatches in one per-oligo signature cell.
+// The tool writes '.' for every matching position and the reference base (or '-'
+// for a gap) for every mismatching one, so any non-'.' character is a mismatch —
+// the same count the tool itself reports. ok is false for an oligo that did not
+// match (no signature to count).
+func signatureMismatches(cell string) (int, bool) {
+	if cell == "" || cell == "NO_MATCH" {
+		return 0, false
+	}
+	// Matched cells carry an orientation suffix (see the tool's
+	// BuildSignatureParts); it is not part of the alignment.
+	s := strings.TrimSuffix(strings.TrimSuffix(cell, "(fwd)"), "(rev)")
+	n := 0
+	for _, c := range s {
+		if c != '.' {
+			n++
+		}
+	}
+	return n, true
 }
 
 // ----------------------------------------------------------------------------
